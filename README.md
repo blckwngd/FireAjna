@@ -24,9 +24,23 @@ usable in browser and from NodeJS.
  - moveObject(): moves an object to another location
  - updateObject(): changes an objects data
  - deleteObject(): deletes an object
+ - message(): sends a message to an objects inbox
  
 ### events
 
  - object_entered: a new object arrived in the observed area
  - object_changed: an observed object has changed its data (i.e. its position)
  - object_left: an object has been removed, or moved out of the observed area
+
+## AjnaObject
+represent an georeferenced object within the Firestore
+
+### properties
+ - id: the objects Firebase-id
+
+### methods
+ - on(): subscribes to a given event
+ - off(): unsubscribes from a previously subscribed event
+ - move(): move relatively, or to an absolute position
+ - send(): sends a message to the objects inbox
+ - sendTo(): initiates a message, using the object as a sender, to another objects inbox
