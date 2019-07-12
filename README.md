@@ -32,18 +32,30 @@ usable in browser and from NodeJS.
  - object_changed: an observed object has changed its data (i.e. its position)
  - object_left: an object has been removed, or moved out of the observed area
 
+
 ## AjnaObject
 represent an georeferenced object within the Firestore
 
 ### properties
- - id: the objects Firebase-id
+
+- id: the objects Firebase-id
 
 ### methods
- - on(): subscribes to a given event
+
+- on(): subscribes to a given event
  - off(): unsubscribes from a previously subscribed event
  - move(): move relatively, or to an absolute position
  - send(): sends a message to the objects inbox
  - sendTo(): initiates a message, using the object as a sender, to another objects inbox
+ - provideAction(): wrapper function to provide an action and listen to it being called
+ - removeAction(): removes an action, so that it is no longer promoted to other users
+
+### events
+
+ - changed: the objects properties have changed
+ - action_triggered: a provided action has been triggered by a user
+ - message_received: a message has been received in the objects inbox
+ - move: the object has been moved, i.e. by another process
 
 
 ## Code Sample
