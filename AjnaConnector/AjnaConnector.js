@@ -1,22 +1,26 @@
+
+const GeoFirestore = require('geofirestore').GeoFireStore;
+const GeoCollectionReference = require('geofirestore').GeoCollectionReference;
+const GeoQuery = require('geofirestore').GeoQuery;
+const GeoQuerySnapshot = require('geofirestore').GeoQuerySnapshot;
+
 class AjnaConnector {
 
-  { GeoCollectionReference, GeoFirestore, GeoQuery, GeoQuerySnapshot } : require('geofirestore');
-  
-  handler: {
-    objects_retrieved: false,
-    object_entered: false,
-    object_updated: false,
-    object_left: false
-  }
-
   constructor( firebaseConfig ) {
+    this.handler = {
+      objects_retrieved: false,
+      object_entered: false,
+      object_updated: false,
+      object_left: false
+    }
+
     // Initialize the Firebase SDK
     this.firebase = require("firebase/app");
     require("firebase/auth");
     require("firebase/firestore");
-    this.firestore = this.firebase.firestore();
     this.firebase.initializeApp(firebaseConfig);
-    this.geofirestore: new GeoFirestore(firestore);
+    this.firestore = this.firebase.firestore();
+    this.geofirestore = new GeoFirestore(this.firestore);
     
     // GeoCollection reference
     this.geocollection = this.geofirestore.collection('objects');
@@ -62,17 +66,18 @@ class AjnaConnector {
 
 class AjnaObject {
   
-  id: false;
-  obj: false;
-  
-  handler: {
-    changed: false,
-    action_triggered: false,
-    message_received: false,
-    move: false
-  }
-  
   constructor( obj ) {
+    
+    this.id = false;
+    this.obj = false;
+    
+    this.handler = {
+      changed: false,
+      action_triggered: false,
+      message_received: false,
+      move: false
+    }
+    
     this.id = obj.id;
     this.obj = obj;
   }
