@@ -1,0 +1,16 @@
+{
+  "name": "ajnaconnector",
+  "version": "0.0.1",
+  "description": "provides connection handling for the Ajna ecosystem",
+  "main": "AjnaConnector.js",
+  "dependencies": {
+    "firebase": "^6.2.4",
+    "geofirestore": "^3.3.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Andreas Barth",
+  "license": "ISC"
+}
