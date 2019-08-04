@@ -1,12 +1,8 @@
 
-const GeoFirestore = require('geofirestore').GeoFireStore;
-const GeoCollectionReference = require('geofirestore').GeoCollectionReference;
-const GeoQuery = require('geofirestore').GeoQuery;
-const GeoQuerySnapshot = require('geofirestore').GeoQuerySnapshot;
-
 class AjnaConnector {
 
   constructor( firebaseConfig ) {
+    
     this.handler = {
       objects_retrieved: false,
       object_entered: false,
@@ -15,15 +11,18 @@ class AjnaConnector {
     }
 
     // Initialize the Firebase SDK
-    this.firebase = require("firebase/app");
-    require("firebase/auth");
-    require("firebase/firestore");
-    this.firebase.initializeApp(firebaseConfig);
+    this.firebase = require( "firebase/app" );
+    require( "firebase/auth" );
+    require( "firebase/firestore" );
+    this.firebase.initializeApp( firebaseConfig );
     this.firestore = this.firebase.firestore();
-    this.geofirestore = new GeoFirestore(this.firestore);
+    
+    // Initialize GeoFireStore
+    this.GeoFireStore = require('geofirestore');
+    this.geofirestore = new this.GeoFireStore.GeoFirestore( this.firestore );
     
     // GeoCollection reference
-    this.geocollection = this.geofirestore.collection('objects');
+    this.geocollection = this.geofirestore.collection( 'objects' );
   }
   
   /**
@@ -45,8 +44,8 @@ class AjnaConnector {
   }
   
   observe( location, radius ) {
-    this.geoquery = this.geocollection.near({ center: new firebase.firestore.GeoPoint(50.451347, 7.536345), radius: 10000 });
-    this.observer = geoquery.onSnapshot(querySnapshot => {
+    this.geoquery = this.geocollection.near({ center: new this.firebase.firestore.GeoPoint(50.451347, 7.536345), radius: 10000 });
+    this.observer = this.geoquery.onSnapshot(querySnapshot => {
       // Received query snapshot
       if (this.handler.objects_retrieved) {
         // callback
