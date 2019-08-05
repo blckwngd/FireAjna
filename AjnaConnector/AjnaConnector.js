@@ -5,6 +5,7 @@ class AjnaConnector {
     
     this.handler = {
       objects_retrieved: false,
+      auth_state_changed: false,
       object_entered: false,
       object_updated: false,
       object_left: false
@@ -17,12 +18,25 @@ class AjnaConnector {
     this.firebase.initializeApp( firebaseConfig );
     this.firestore = this.firebase.firestore();
     
+    // handle logon callback
+    this.firebase.auth().onAuthStateChanged(( user ) => {
+      if ( this.handler.auth_state_changed ) {
+        this.handler.auth_state_changed( user );
+      }
+    });
+    
     // Initialize GeoFireStore
-    this.GeoFireStore = require('geofirestore');
+    this.GeoFireStore = require( "geofirestore" );
     this.geofirestore = new this.GeoFireStore.GeoFirestore( this.firestore );
     
     // GeoCollection reference
     this.geocollection = this.geofirestore.collection( 'objects' );
+  }
+  
+  login( username, password, callback ) {
+    this.firebase.auth().signInWithEmailAndPassword(username, password).catch(function(error) {
+      callback(error);
+    });
   }
   
   /**
