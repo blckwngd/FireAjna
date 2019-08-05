@@ -4,12 +4,14 @@ class AjnaConnector {
   constructor( firebaseConfig ) {
     
     this.handler = {
-      objects_retrieved: false,
+      object_retrieved: false,
       auth_state_changed: false,
       object_entered: false,
       object_updated: false,
       object_left: false
     }
+    
+    this.objects = [];
 
     // Initialize the Firebase SDK
     this.firebase = require( "firebase/app" );
@@ -61,17 +63,27 @@ class AjnaConnector {
     this.geoquery = this.geocollection.near({ center: new this.firebase.firestore.GeoPoint(50.451347, 7.536345), radius: 10000 });
     this.observer = this.geoquery.onSnapshot(querySnapshot => {
       // Received query snapshot
-      if (this.handler.objects_retrieved) {
-        // callback
-        this.handler.objects_retrieved( querySnapshot.docs );
-      }
+        querySnapshot.docs.forEach(doc => {
+          if (!this.objects[doc.id]) {  
+            // retrieved a new (previously unknown) object
+            this.objects[doc.id] = new AjnaObject(doc);
+            if (this.handler.object_retrieved)
+              this.handler.object_retrieved( this.objects[doc.id] );
+          } else {
+            // received an update for a known object
+            this.objects[doc.id].doc = doc;
+            if (this.handler.object_updated) {
+              this.handler.object_updated( this.objects[doc.id] );
+            }
+          }
+        });
     }, err => {
-      console.log( 'Encountered error: ${err}' );
+      console.log( 'Encountered error: ', err );
     });
   }
   
   getObjects( ) {
-    // TODO
+    return this.objects;
   }
    
    
@@ -79,10 +91,7 @@ class AjnaConnector {
 
 class AjnaObject {
   
-  constructor( obj ) {
-    
-    this.id = false;
-    this.obj = false;
+  constructor( doc ) {
     
     this.handler = {
       changed: false,
@@ -91,8 +100,8 @@ class AjnaObject {
       move: false
     }
     
-    this.id = obj.id;
-    this.obj = obj;
+    this.id = doc.id || false;
+    this.doc = doc || false;
   }
   
   /**
@@ -117,7 +126,7 @@ class AjnaObject {
    * moves the object to a specific location, given by latitude and longitude
    **/
   move( location ) {
-    this.obj.location = new firebase.firestore.GeoPoint(location.lat, location.lon);
+    this.doc.location = new firebase.firestore.GeoPoint(location.lat, location.lon);
   }
   
   /**

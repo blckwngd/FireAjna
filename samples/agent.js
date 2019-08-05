@@ -14,9 +14,14 @@ ajna.on('auth_state_changed', (user) => {
   }
 });
 
-ajna.on('objects_retrieved', (objs) => {
-  objs.forEach(doc => {
-    console.log(doc.data());
-  });
+ajna.on('object_retrieved', (obj) => {
+  console.log("RECEIVED NEW OBJECT: " + obj.id);
+  console.log(obj.doc.data());
 });
+
+ajna.on('object_updated', (obj) => {
+  console.log("UPDATED OBJECT: " + obj.id);
+  console.log(obj.doc.data());
+});
+
 ajna.observe( {lat: 50.451347, lng: 7.536345}, 1000);
