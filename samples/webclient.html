@@ -1,11 +1,28 @@
 <!doctype html>
-<html>
+
+<html class="no-js" lang="en" dir="ltr">
   <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FireAjna Web Client</title>
+    
+    <!-- FOUNDATION -->
+    <link rel="stylesheet" href="css/foundation.css">
+    <link rel="stylesheet" href="css/app.css">
+    <link href="http://mozilla.github.io/foundation-icons/assets/foundation-icons.css" type="text/css" rel="stylesheet">
+    
+    <!-- FIREBASE UI -->
+    <script src="../AjnaConnector/AjnaConnector.js"></script>
+    <script src="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.css" />
   </head>
   <body>
+    <!-- FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-firestore.js"></script>
+    <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>
     
     <script>
       var firebaseConfig = {
@@ -19,7 +36,177 @@
       };
 
       // Initialize Firebase
-      firebase.initializeApp(firebaseConfig);
+      const ajna = new AjnaConnector( firebaseConfig, firebase, GeoFirestore );
+      
+      // start signIn process
+      // Initialize the FirebaseUI Widget using Firebase.
+      var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
+      ui.start('#firebaseui-auth-container', {
+        signInOptions: [
+          ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
+        ],
+        callbacks: {
+          uiShown: function() {
+            document.getElementById('loader').style.display = 'none';
+          }
+        },
+        signInFlow: 'popup'
+      });
+      
+      ajna.on('auth_state_changed', function(user) {
+        if (user) {
+          // User is signed in.
+          console.log(user.email + " logged in");
+          var displayName = user.displayName;
+          var email = user.email;
+          var emailVerified = user.emailVerified;
+          var photoURL = user.photoURL;
+          var isAnonymous = user.isAnonymous;
+          var uid = user.uid;
+          var providerData = user.providerData;
+          loginDone();
+          // ...
+        } else {
+          console.log("user is signed out");
+          $('#loginButton').show();
+          $('#logoutButton').hide();
+        }
+      });
+      
+      function logout() {
+        console.log("logging out...");
+        ajna.logout();
+      }
+      
+      function loginDone() {
+        console.log('loginDone()');
+        $('#loginModal').foundation('close');
+        $('#loginButton').hide();
+        $('#logoutButton').show();
+      }
+      
+      
+      ajna.on('object_retrieved', (obj) => {
+        console.log("RECEIVED NEW OBJECT: " + obj.id);
+        console.log(obj.doc.data());
+      });
+
+      ajna.on('object_updated', (obj) => {
+        console.log("UPDATED OBJECT: " + obj.id);
+      });
+      
+      window.onload = function() {        
+        // init
+        $('#logoutButton').hide();
+        ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 100);
+      }
+      
+      var geoWatcher = false;
+      function toggleGPS() {
+        if ($('#geoLocSwitch').is(':checked')) {          
+          if (navigator.geolocation) { geoWatcher = navigator.geolocation.watchPosition(updatePosition); }
+          else { alert("Geolocation is not supported by this browser."); }
+        } else {
+          navigator.geolocation.clearWatch(geoWatcher);
+        }
+      }
+      
+      function updatePosition(position) {
+        var p = ajna.GeoPoint(position.coords.latitude, position.coords.longitude);
+        console.log(p);
+        ajna.observe(p, 1000);
+      }
+      
     </script>
+    
+    
+    <div class="grid-container">
+      <div class="grid-x grid-padding-x">
+        <div class="large-12 cell">
+          <h1>Ajna WebClient</h1>
+        </div>
+      </div>
+
+      <div class="grid-x grid-padding-x">
+        <div class="large-12 cell">
+          <div class="callout">
+            <p>Here you can see, create and manipulate your Ajna objects. 
+              <span class="float-right">
+                Follow me:&nbsp;
+                <span class="switch medium">
+                  <input class="switch-input" id="geoLocSwitch" type="checkbox" name="geoLocationSwitch" onchange="toggleGPS()">
+                  <label class="switch-paddle" for="geoLocSwitch">
+                    <span class="show-for-sr">locate me</span>
+                  </label>
+                </span>
+                <a id="loginButton" data-open="loginModal" class="button icon-lock">Login</a>
+                <a id="logoutButton" onclick="logout()" class="button icon-lock">Logout</a>
+              </span></p>
+            <p></p>
+          </div>
+        </div>
+      </div>
+      
+
+      <div class="tiny reveal" id="loginModal" data-animation-in="spin-in" data-animation-out="spin-out" data-reveal>
+        <div id="firebaseui-auth-container"></div>
+        <div id="loader">Loading...</div>
+        <button class="close-button" data-close aria-label="Close reveal" type="button">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      
+
+      <div class="grid-x grid-padding-x">
+        <div class="large-6 medium-6 cell">
+          <h3>Available objects:
+          <a class="button float-right">Add</a>
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th width="200">name</th>
+                <th>description</th>
+                <th width="150">position</th>
+                <th width="150">actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>object1</td>
+                <td>just a sample object.</td>
+                <td>lon / lat</td>
+                <td><a class="button icon-pencil" title="Edit"></a> <a class="button icon-minus" title="Delete"></a></td>
+              </tr>
+              <tr>
+                <td>object2</td>
+                <td>sample object 2.</td>
+                <td>lon / lat</td>
+                <td><a class="button icon-pencil" title="Edit"></a> <a class="button icon-minus" title="Delete"></a></td>
+              </tr>
+              <tr>
+                <td>object3</td>
+                <td>sample object 3.</td>
+                <td>lon / lat</td>
+                <td><a class="button icon-pencil" title="Edit"></a> <a class="button icon-minus" title="Delete"></a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="large-6 medium-6 cell">
+          <h3>Map:</h3>
+          <div class="callout">
+            <h5>Here goes the map!</h5>
+            <p>this will be replaced with the interactive map.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/vendor/jquery.js"></script>
+    <script src="js/vendor/what-input.js"></script>
+    <script src="js/vendor/foundation.js"></script>
+    <script src="js/app.js"></script>
   </body>
 </html>
