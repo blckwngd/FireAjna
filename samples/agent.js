@@ -49,7 +49,7 @@ function tickDemoAgent( ) {
   // act
   demoObject.set({
     description: "random data: " + Math.random()
-  })
+  });
 }
 
 function startDemoAgent( ) {

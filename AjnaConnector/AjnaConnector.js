@@ -13,6 +13,10 @@ class AjnaConnector {
     
     this.objects = [];
     this.user = false;
+    this.observed = {
+      location: null,
+      radius: null
+    };
 
     // Initialize the Firebase SDK
     this.firebase = Firebase;
@@ -24,6 +28,7 @@ class AjnaConnector {
       if ( this.handler.auth_state_changed ) {
         this.user = user;
         this.handler.auth_state_changed( user );
+        this.observe( this.observed.location, this.observed.radius )
       }
     });
     
@@ -83,17 +88,29 @@ class AjnaConnector {
   }
   
   observe( location, radius ) {
-    console.log( "observing ", location );
-    console.log( "Radius: " + radius );
-    this.geoquery = this.geocollection.near({ center: location, radius: radius });
-    this.observer = this.geoquery.onSnapshot(querySnapshot => {
-      // Received query snapshot
-        querySnapshot.docs.forEach(doc => {
-          this._handleObject( doc );
-        });
-    }, err => {
-      console.log( 'Encountered error: ', err );
-    });
+    this.observed.location = location;
+    this.observed.radius = radius;
+    
+    var snapshot_handler = function(querySnapshot) {// Received query snapshot
+      querySnapshot.docs.forEach(doc => {
+        this._handleObject( doc );
+      });
+    };
+    
+    this.geoquery = this.geocollection
+      .near({ center: location, radius: radius });
+    // Testobjekt
+    //this.geoquery.where('name', '==', 'GeoFireTestObjekt').onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+    // RULE: !isPermissioned(resource.data.d)
+    this.geoquery.where('p', '==', null).onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+    // RULE: hasAnonymousPerm(resource.data.d, 'r')
+    this.geoquery.where('p.a', 'array-contains', 'r').onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+    // RULE: isOwner()
+    if (this.user && this.user.uid) {
+      this.geoquery.where('owner', '==', this.user.uid).onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+    }
+    // RULE: hasPublicPerm(resource.data.d, 'read');
+//    this.geoquery.where('permissions', '!=', null).where(onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
   }
   
   getObjects( ) {
@@ -115,9 +132,57 @@ class AjnaConnector {
     })
   }
   
-  createObject( location, data ) {
-    owner = this.user.id;
+  // create an object in the database.
+  createObject (data, onSuccess, onError) {
+    // enforce minimal permission entries
+    if (!data.p) {
+      data.p = {};
+    }
+    if (!data.p.a || !Array.isArray(data.p.a)) {
+      data.p.a = [];
+    }
+    if (!data.p.r || !Array.isArray(data.p.r)) {
+      data.p.r = [];
+    }
+    this.geocollection.add( data ).then((docRef) => {
+      if (onSuccess) onSuccess(docRef);
+    }).catch( (error) => {
+      console.log('Error: ', error);
+      if (onError) onError(error);
+    });
   }
+  
+  // save an object to the database.
+  setObject (id, data, onSuccess, onError) {
+    this.geocollection.doc( id ).set( data, { merge: true } ).then(() => {
+      if (onSuccess) onSuccess();
+    }, (error) => {
+      console.log('Error: ' + error);
+      if (onError) onError();
+    });
+  }
+  
+  // checks if the user has a specific permission on a given permissionSet
+  checkPermission(permissionSet, perm, owner) {
+    if(owner && owner===this.user.uid)
+      return true;
+    if (permissionSet) {
+      // anonymous permissions
+      if (permissionSet.a && permissionSet.a.includes(perm))
+      { console.log('anon permission OK'); return true; }
+      // registered-user permissions
+      if (this.user.uid && permissionSet.r && permissionSet.r.includes(perm))
+      { console.log('registered permission OK'); return true; }
+      // user permissions
+      if (permissionSet.u && permissionSet.u[this.user.uid] && permissionSet.u[this.user.uid].includes(perm))
+      { console.log('user permission OK'); return true; }
+      console.log("no matching permission. access denied.");
+      return false;
+    }
+    console.log("no permission to check - granting access.");
+    return true;
+  }
+  
 
 }
 
@@ -170,7 +235,6 @@ class AjnaObject {
   }
   
   set( data ) {
-    console.log("setting data; owner=" + this.doc.data().owner);
     this.geocollection.doc( this.id ).set( data, { merge: true } );
   }
   

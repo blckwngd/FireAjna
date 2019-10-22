@@ -16,6 +16,11 @@
     <script src="../AjnaConnector/AjnaConnector.js"></script>
     <script src="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.js"></script>
     <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.css" />
+    <style>
+    #map {
+      height: 100%;
+    }
+  </style>
   </head>
   <body>
     <!-- FIREBASE -->
@@ -37,6 +42,9 @@
 
       // Initialize Firebase
       const ajna = new AjnaConnector( firebaseConfig, firebase, GeoFirestore );
+      
+      // Map
+      var map;
       
       // start signIn process
       // Initialize the FirebaseUI Widget using Firebase.
@@ -79,7 +87,6 @@
       }
       
       function loginDone() {
-        console.log('loginDone()');
         $('#loginModal').foundation('close');
         $('#loginButton').hide();
         $('#logoutButton').show();
@@ -87,18 +94,186 @@
       
       
       ajna.on('object_retrieved', (obj) => {
-        console.log("RECEIVED NEW OBJECT: " + obj.id);
-        console.log(obj.doc.data());
+        updateTableRow(obj);
+        updateMapMarker(obj);
       });
 
       ajna.on('object_updated', (obj) => {
-        console.log("UPDATED OBJECT: " + obj.id);
+        updateTableRow(obj);
+        updateMapMarker(obj);
       });
       
       window.onload = function() {        
         // init
         $('#logoutButton').hide();
+        editModeOff();
         ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 100);
+      }
+
+      var editMode=false;
+      function toggleEditMode() {
+        editMode ? editModeOff() : editModeOn();
+      }
+      
+      function editModeOn() {
+        $('#objectModal').find('.editOff').hide();
+        $('#objectModal').find('.editOn').show();
+        $('#editModeSwitch').prop('checked', true);
+        editMode = true;
+      }
+      
+      function editModeOff() {
+        $('#objectModal').find('.editOff').show();
+        $('#objectModal').find('.editOn').hide();
+        $('#editModeSwitch').prop('checked', false);
+        editMode = false;
+      }
+      
+      function openObjEditor(id) {
+        $('#objectModal').foundation('open');
+        var o = ajna.getObject(id);
+        var d = o.doc.data();
+        $('#objectModalObjectId').val(id);
+        $('#inpName').val(d.name);
+        $('#txtName').html(d.name);
+        $('#inpDesc').val(d.description);
+        $('#txtDesc').html(d.description);
+        $('#inpLong').val(d.coordinates._long);
+        $('#txtLong').html(d.coordinates._long);
+        $('#inpLat').val(d.coordinates._lat);
+        $('#txtLat').html(d.coordinates._lat);
+        var row = $("<tr/>");
+        var cb = $("<input>");
+        cb.attr("type", "checkbox");
+        cb.attr("title", "perm");
+        $("#tbl_permissions tr").remove();
+        // anonymous permissions
+        row.attr("id", "p_a");
+        var html = "<td>Anonymous users</td>";
+        html += "<td><input type=\"checkbox\" id=\"p_a_r\"" + (d.p.a.includes("r") ? " checked" : "") + " title=\"read\" /></td>";
+        html += "<td><input type=\"checkbox\" id=\"p_a_w\"" + (d.p.a.includes("w") ? " checked" : "") + " title=\"write\" /></td>";
+        html += "<td><input type=\"checkbox\" id=\"p_a_d\"" + (d.p.a.includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
+        html += "<td><input type=\"checkbox\" id=\"p_a_x\"" + (d.p.a.includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
+        row.html(html);
+        row.appendTo("#tbl_permissions");
+        
+        // registered-user permissions
+        row = row.clone();
+        row.attr("id", "p_r");
+        var html = "<td>Registered users</td>";
+        html += "<td><input type=\"checkbox\" id=\"p_r_r\"" + (d.p.r.includes("r") ? " checked" : "") + " title=\"read\" /></td>";
+        html += "<td><input type=\"checkbox\" id=\"p_r_w\"" + (d.p.r.includes("w") ? " checked" : "") + " title=\"write\" /></td>";
+        html += "<td><input type=\"checkbox\" id=\"p_r_d\"" + (d.p.r.includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
+        html += "<td><input type=\"checkbox\" id=\"p_r_x\"" + (d.p.r.includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
+        row.html(html);
+        row.appendTo("#tbl_permissions");
+        
+        // user-specific permissions
+        for (var i in d.p.u) {
+          row = row.clone();
+          row.attr("id", "p_u_" + i);
+          row.attr("class", "p_u");
+          var html = "<td>(u) " + i + "</td>";
+          html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_r\"" + (d.p.u[i].includes("r") ? " checked" : "") + " title=\"read\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_w\"" + (d.p.u[i].includes("w") ? " checked" : "") + " title=\"write\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_d\"" + (d.p.u[i].includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_x\"" + (d.p.u[i].includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
+          row.html(html);
+          row.appendTo("#tbl_permissions");
+        }
+        
+        // group-specific permissions
+        for (var i in d.p.g) {
+          row = row.clone();
+          row.attr("id", "p_g_" + i);
+          row.attr("class", "p_g");
+          var html = "<td>(g) " + i + "</td>";
+          html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_r\"" + (d.p.g[i].includes("r") ? " checked" : "") + " title=\"read\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_w\"" + (d.p.g[i].includes("w") ? " checked" : "") + " title=\"write\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_d\"" + (d.p.g[i].includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_x\"" + (d.p.g[i].includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
+          row.html(html);
+          row.appendTo("#tbl_permissions");
+        }
+      }
+      
+      function objView(id) {
+        editModeOff();
+        openObjEditor(id);
+      }
+      
+      function objEdit(id) {
+        editModeOn();
+        openObjEditor(id);
+      }
+      
+      function objDelete(id) {
+        if(window.confirm("are you sure?")) {
+          console.log("coming soon...");
+        }
+      }
+      
+      var markers = {};
+      // update the map to represent a received object
+      function updateMapMarker(obj) {
+        var data = obj.doc.data();
+        var latLng = new google.maps.LatLng(data.coordinates._lat, data.coordinates._long);
+        var options = {
+          position: latLng,
+          map: map,
+          label: data.name,
+          title: data.description,
+          draggable: true,
+          data: "data123",
+          ajnaObjId: obj.id
+        }
+        if (obj.id in markers) {
+          // adjust an existing map marker to the current data
+          markers[obj.id].setOptions(options);
+        } else {
+          // create a new marker on the map
+          var marker = new google.maps.Marker(options);
+          
+          google.maps.event.addListener(marker, "dragend", (event) => {
+            // write changes back to firestore
+            ajna.setObject (
+              // id
+              marker.ajnaObjId,
+              // updated coordinates
+              { coordinates: ajna.GeoPoint(event.latLng.lat(), event.latLng.lng()) },
+              // onSuccess
+              () => { console.log("success :-)"); },
+              // onError
+              (err) => { console.log("error :-(", err); },
+            )
+          });
+          google.maps.event.addListener(marker, "click", (event) => { editModeOff(); openObjEditor(obj.id); });
+          markers[obj.id] = marker;
+        }
+      }
+      
+      function updateTableRow(obj) {
+        var data = obj.doc.data();
+        var actions = '&nbsp;';
+        if (ajna.checkPermission(data.p, 'w', data.owner)) {
+          actions = '<a class="button icon-pencil" title="Edit" onclick="objEdit(\''+obj.id+'\')"></a> <a class="button icon-minus" title="Delete" onclick="objDelete(\'' + obj.id + '\')"></a>';
+        }
+        var row = $("<tr/>", {
+            id: 'tr_' + obj.id,
+            html: '<td><a href="javascript:objView(\''+obj.id+'\')">' + data.name + '</a></td><td>' + data.description + '</td><td>' + actions + '</td>'
+        }).mouseover(function() {
+          // make the marker jump!
+          markers[obj.id].setAnimation(google.maps.Animation.BOUNCE);
+        }).mouseout(function() {
+          // make the marker jump!
+          markers[obj.id].setAnimation(null);
+        });
+        
+        if($('#tr_' + obj.id).length == 0) {
+          row.appendTo("#table_objects");
+        } else {
+          $('#tr_' + obj.id).replaceWith(row);
+        }
       }
       
       var geoWatcher = false;
@@ -111,11 +286,83 @@
         }
       }
       
+      var me = false;
       function updatePosition(position) {
+        // calculate GeoPoint (for Ajna and GMaps respectively)
         var p = ajna.GeoPoint(position.coords.latitude, position.coords.longitude);
-        console.log(p);
+        var l = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+        
+        if (me === false) {
+          me = new google.maps.Marker({
+            position: l,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              strokeColor: 'blue',
+              scale: 10,
+              strokeWeight: 5,
+              title: "You are here!"
+            },
+            draggable: false,
+            map: map
+          });
+        } else {
+          me.setPosition(l);
+        }
+        // move the Map to the new position
+        map.panTo(l);
+        // set the new position as center for watching for ajna objects
         ajna.observe(p, 1000);
       }
+      
+      function buildPermissionObject () {
+        var p = {a: [], r: [], u: {}, g: {}};
+        if ($("#p_a_r").prop("checked")) p.a.push("r");
+        if ($("#p_a_w").prop("checked")) p.a.push("w");
+        if ($("#p_a_d").prop("checked")) p.a.push("d");
+        if ($("#p_a_x").prop("checked")) p.a.push("x");
+        if ($("#p_r_r").prop("checked")) p.r.push("r");
+        if ($("#p_r_w").prop("checked")) p.r.push("w");
+        if ($("#p_r_d").prop("checked")) p.r.push("d");
+        if ($("#p_r_x").prop("checked")) p.r.push("x");
+        $(".p_u").each(function(i, obj) {
+          var id = obj.id.substring(4);
+          p.u[id] = [];
+          if ($("#p_u_" + id + "_r").prop("checked")) p.u[id].push("r");
+          if ($("#p_u_" + id + "_w").prop("checked")) p.u[id].push("w");
+          if ($("#p_u_" + id + "_d").prop("checked")) p.u[id].push("d");
+          if ($("#p_u_" + id + "_x").prop("checked")) p.u[id].push("x");
+        });
+        $(".p_g").each(function(i, obj) {
+          var id = obj.id.substring(4);
+          p.g[id] = [];
+          if ($("#p_g_" + id + "_r").prop("checked")) p.g[id].push("r");
+          if ($("#p_g_" + id + "_w").prop("checked")) p.g[id].push("w");
+          if ($("#p_g_" + id + "_d").prop("checked")) p.g[id].push("d");
+          if ($("#p_g_" + id + "_x").prop("checked")) p.g[id].push("x");
+        });
+        return p;
+      }
+      
+      function saveObject() {
+        var id = $("#objectModalObjectId").val();
+        var d = {
+          name: $("#inpName").val(),
+          description: $("#inpDesc").val(),
+          coordinates: ajna.GeoPoint(parseFloat($("#inpLat").val()), parseFloat($("#inpLong").val())),
+          p: buildPermissionObject()
+        }
+        
+        ajna.setObject(id, d, () => {
+          // onSuccess
+          alert('object saved successfully');
+          $('#objectModal').foundation('close');
+        }, (err) => {
+          // onError
+          alert('Error!');
+          console.log(err);
+        });
+      }
+      
       
     </script>
     
@@ -148,6 +395,7 @@
       </div>
       
 
+      <!-- LOGIN WINDOW -->
       <div class="tiny reveal" id="loginModal" data-animation-in="spin-in" data-animation-out="spin-out" data-reveal>
         <div id="firebaseui-auth-container"></div>
         <div id="loader">Loading...</div>
@@ -157,46 +405,29 @@
       </div>
       
 
+      <!-- OBJECT TABLE -->
       <div class="grid-x grid-padding-x">
         <div class="large-6 medium-6 cell">
           <h3>Available objects:
           <a class="button float-right">Add</a>
           </h3>
-          <table>
+          <table id="table_objects">
             <thead>
               <tr>
                 <th width="200">name</th>
                 <th>description</th>
-                <th width="150">position</th>
                 <th width="150">actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>object1</td>
-                <td>just a sample object.</td>
-                <td>lon / lat</td>
-                <td><a class="button icon-pencil" title="Edit"></a> <a class="button icon-minus" title="Delete"></a></td>
-              </tr>
-              <tr>
-                <td>object2</td>
-                <td>sample object 2.</td>
-                <td>lon / lat</td>
-                <td><a class="button icon-pencil" title="Edit"></a> <a class="button icon-minus" title="Delete"></a></td>
-              </tr>
-              <tr>
-                <td>object3</td>
-                <td>sample object 3.</td>
-                <td>lon / lat</td>
-                <td><a class="button icon-pencil" title="Edit"></a> <a class="button icon-minus" title="Delete"></a></td>
-              </tr>
             </tbody>
           </table>
         </div>
 
-        <div class="large-6 medium-6 cell">
+        <!-- MAP -->
+        <div class="large-6 medium-6 cell" style="height:500px;">
           <h3>Map:</h3>
-          <div class="callout">
+          <div class="callout" id="map">
             <h5>Here goes the map!</h5>
             <p>this will be replaced with the interactive map.</p>
           </div>
@@ -204,9 +435,121 @@
       </div>
     </div>
 
+    <!-- OBJECT EDITOR -->
+    <div class="reveal" id="objectModal" data-reveal>
+      <span class="switch medium float-right" style="margin-right:30px;">
+        <input class="switch-input" id="editModeSwitch" type="checkbox" name="editModeSwitch" onchange="toggleEditMode()">
+        <label class="switch-paddle" for="editModeSwitch">
+          <span class="show-for-sr">edit me</span>
+          <span class="switch-active" aria-hidden="true">edit</span>
+          <span class="switch-inactive" aria-hidden="true">edit</span>
+        </label>
+      </span>
+      <h1>NAME</h1>
+      <form>
+        <input type="hidden" id="objectModalObjectId" value=""/>
+        
+        <!-- name -->
+        <div class="grid-x grid-margin-x">
+          <div class="cell small-2">
+            <label for="inpName" class="text-right middle">Name</label>
+          </div>
+          <div class="cell small-8">
+            <input class="editOn" id="inpName" type="text" placeholder="name" value="text">
+            <div class="editOff" id="txtName" style="margin-top:7px; margin-left:9px;">text</div>
+          </div>
+        </div>
+        
+        <!-- description -->
+        <div class="grid-x grid-margin-x">
+          <div class="cell small-2">
+            <label for="inpDesc" class="text-right middle">Description</label>
+          </div>
+          <div class="cell small-8">
+            <textarea class="editOn" id="inpDesc" type="text" placeholder="description"></textarea>
+            <div class="editOff" id="txtDesc" style="margin-top:7px; margin-left:9px;">description</div>
+          </div>
+        </div>
+        
+        <!-- longitude / latitude -->
+        <div class="grid-x grid-margin-x">
+          <div class="cell small-2">
+            <label for="inpLong" class="text-right middle">Longitude</label>
+          </div>
+          <div class="cell small-8">
+            <input class="editOn" id="inpLong" type="text" placeholder="longitude"/>
+            <div class="editOff" id="txtLong" style="margin-top:7px; margin-left:9px;">longitude</div>
+          </div>
+        </div>
+        
+        <div class="grid-x grid-margin-x">
+          <div class="cell small-2">
+            <label for="inpLat" class="text-right middle">Latitude</label>
+          </div>
+          <div class="cell small-8">
+            <input class="editOn" id="inpLat" type="text" placeholder="latitude"/>
+            <div class="editOff" id="txtLat" style="margin-top:7px; margin-left:9px;">latitude</div>
+          </div>
+        </div>
+        
+        <!-- user/group permissions -->
+        <table class="editOn hover unstriped">
+          <thead>
+            <tr>
+              <td>who</td>
+              <td>r</td>
+              <td>w</td>
+              <td>d</td>
+              <td>x</td>
+            </tr>
+          </thead>
+          <tbody id="tbl_permissions">
+          </tbody>
+        </table>
+              
+      </form>
+      
+      <!-- SAVE / CANCEL buttons -->
+      <button class="close-button" data-close aria-label="close" type="button">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <div class="float-right">
+        <button class="button editOn" id="objectModalSave" onclick="saveObject()">Save</button>&nbsp;
+        <button class="button" id="objectModalCancel" data-close>Cancel</button>
+      </div>
+    </div>
+
     <script src="js/vendor/jquery.js"></script>
     <script src="js/vendor/what-input.js"></script>
     <script src="js/vendor/foundation.js"></script>
     <script src="js/app.js"></script>
+    
+    <script>
+      function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: 50.451356, lng: 7.536334},
+          zoom: 18,
+          mapTypeId: 'terrain'
+        });
+        google.maps.event.addListener(map, "rightclick", (event) => { 
+          if (confirm('create a new object here?')) {
+            ajna.createObject({
+              name: "unnamed object",
+              description: "edit me",
+              coordinates: ajna.GeoPoint(event.latLng.lat(), event.latLng.lng()),
+              owner: ajna.user.uid,
+              p: {a: [], r: []}
+            }, (docRef) => {
+              openObjEditor(docRef.id);
+              editModeOn();
+            }, (err) => {
+              console.log("error: ", err)
+            });
+          }
+        });
+      }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBdcgv-FaJWFgFACjSGj7nSnIffx0ygtcU&callback=initMap"
+    async defer></script>
   </body>
 </html>
