@@ -116,16 +116,27 @@
       }
       
       function editModeOn() {
-        $('#objectModal').find('.editOff').hide();
-        $('#objectModal').find('.editOn').show();
-        $('#editModeSwitch').prop('checked', true);
-        editMode = true;
+        var o = ajna.getObject($('#objectModalObjectId').val());
+        var d = o.doc.data();
+        if (ajna.checkPermission(d.p, 'w', d.owner)) {
+          $('#objectModal').find('.editOff').hide();
+          $('#objectModal').find('.editOn').show();
+          $('#editModeSwitch').prop('checked', true);
+          editMode = true;
+          if (ajna.checkPermission(d.p, 'owner', d.owner))
+            $("#tbl_permissions_container").show();
+          else
+            $("#tbl_permissions_container").hide();
+        } else {
+          editModeOff();
+        }
       }
       
       function editModeOff() {
         $('#objectModal').find('.editOff').show();
         $('#objectModal').find('.editOn').hide();
         $('#editModeSwitch').prop('checked', false);
+        $("#tbl_permissions_container").hide();
         editMode = false;
       }
       
@@ -142,69 +153,93 @@
         $('#txtLong').html(d.coordinates._long);
         $('#inpLat').val(d.coordinates._lat);
         $('#txtLat').html(d.coordinates._lat);
-        var row = $("<tr/>");
-        var cb = $("<input>");
-        cb.attr("type", "checkbox");
-        cb.attr("title", "perm");
-        $("#tbl_permissions tr").remove();
-        // anonymous permissions
-        row.attr("id", "p_a");
-        var html = "<td>Anonymous users</td>";
-        html += "<td><input type=\"checkbox\" id=\"p_a_r\"" + (d.p.a.includes("r") ? " checked" : "") + " title=\"read\" /></td>";
-        html += "<td><input type=\"checkbox\" id=\"p_a_w\"" + (d.p.a.includes("w") ? " checked" : "") + " title=\"write\" /></td>";
-        html += "<td><input type=\"checkbox\" id=\"p_a_d\"" + (d.p.a.includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
-        html += "<td><input type=\"checkbox\" id=\"p_a_x\"" + (d.p.a.includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
-        row.html(html);
-        row.appendTo("#tbl_permissions");
         
-        // registered-user permissions
-        row = row.clone();
-        row.attr("id", "p_r");
-        var html = "<td>Registered users</td>";
-        html += "<td><input type=\"checkbox\" id=\"p_r_r\"" + (d.p.r.includes("r") ? " checked" : "") + " title=\"read\" /></td>";
-        html += "<td><input type=\"checkbox\" id=\"p_r_w\"" + (d.p.r.includes("w") ? " checked" : "") + " title=\"write\" /></td>";
-        html += "<td><input type=\"checkbox\" id=\"p_r_d\"" + (d.p.r.includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
-        html += "<td><input type=\"checkbox\" id=\"p_r_x\"" + (d.p.r.includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
-        row.html(html);
-        row.appendTo("#tbl_permissions");
-        
-        // user-specific permissions
-        for (var i in d.p.u) {
-          row = row.clone();
-          row.attr("id", "p_u_" + i);
-          row.attr("class", "p_u");
-          var html = "<td>(u) " + i + "</td>";
-          html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_r\"" + (d.p.u[i].includes("r") ? " checked" : "") + " title=\"read\" /></td>";
-          html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_w\"" + (d.p.u[i].includes("w") ? " checked" : "") + " title=\"write\" /></td>";
-          html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_d\"" + (d.p.u[i].includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
-          html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_x\"" + (d.p.u[i].includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
-          row.html(html);
-          row.appendTo("#tbl_permissions");
+        var myPerms = [];
+        if (ajna.checkPermission(d.p, 'owner', d.owner))
+          myPerms.push('<b>owner</b>');
+        else {
+          if (ajna.checkPermission(d.p, 'r', d.owner))
+            myPerms.push('read');
+          if (ajna.checkPermission(d.p, 'w', d.owner))
+            myPerms.push('write');
+          if (ajna.checkPermission(d.p, 'x', d.owner))
+            myPerms.push('execute');
+          if (ajna.checkPermission(d.p, 'd', d.owner))
+            myPerms.push('delete');
         }
+        $('#txtMyPerm').html(myPerms.join(', '));
         
-        // group-specific permissions
-        for (var i in d.p.g) {
-          row = row.clone();
-          row.attr("id", "p_g_" + i);
-          row.attr("class", "p_g");
-          var html = "<td>(g) " + i + "</td>";
-          html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_r\"" + (d.p.g[i].includes("r") ? " checked" : "") + " title=\"read\" /></td>";
-          html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_w\"" + (d.p.g[i].includes("w") ? " checked" : "") + " title=\"write\" /></td>";
-          html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_d\"" + (d.p.g[i].includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
-          html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_x\"" + (d.p.g[i].includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
+        if (ajna.checkPermission(d.p, 'owner', d.owner)) {
+          var row = $("<tr/>");
+          var cb = $("<input>");
+          cb.attr("type", "checkbox");
+          cb.attr("title", "perm");
+          $("#tbl_permissions tr").remove();
+          // anonymous permissions
+          row.attr("id", "p_a");
+          var html = "<td>Anonymous users</td>";
+          html += "<td><input type=\"checkbox\" id=\"p_a_r\"" + (d.p.a.includes("r") ? " checked" : "") + " title=\"read\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_a_w\"" + (d.p.a.includes("w") ? " checked" : "") + " title=\"write\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_a_d\"" + (d.p.a.includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_a_x\"" + (d.p.a.includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
           row.html(html);
           row.appendTo("#tbl_permissions");
+          
+          // registered-user permissions
+          row = row.clone();
+          row.attr("id", "p_r");
+          var html = "<td>Registered users</td>";
+          html += "<td><input type=\"checkbox\" id=\"p_r_r\"" + (d.p.r && d.p.r.includes("r") ? " checked" : "") + " title=\"read\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_r_w\"" + (d.p.r && d.p.r.includes("w") ? " checked" : "") + " title=\"write\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_r_d\"" + (d.p.r && d.p.r.includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
+          html += "<td><input type=\"checkbox\" id=\"p_r_x\"" + (d.p.r && d.p.r.includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
+          row.html(html);
+          row.appendTo("#tbl_permissions");
+          
+          // user-specific permissions
+          for (var i in d.p.u) {
+            row = row.clone();
+            row.attr("id", "p_u_" + i);
+            row.attr("class", "p_u");
+            var html = "<td>(u) " + i + "</td>";
+            html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_r\"" + (d.p.u[i].includes("r") ? " checked" : "") + " title=\"read\" /></td>";
+            html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_w\"" + (d.p.u[i].includes("w") ? " checked" : "") + " title=\"write\" /></td>";
+            html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_d\"" + (d.p.u[i].includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
+            html += "<td><input type=\"checkbox\" id=\"p_u_" + i + "_x\"" + (d.p.u[i].includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
+            row.html(html);
+            row.appendTo("#tbl_permissions");
+          }
+          
+          // group-specific permissions
+          for (var i in d.p.g) {
+            row = row.clone();
+            row.attr("id", "p_g_" + i);
+            row.attr("class", "p_g");
+            var html = "<td>(g) " + i + "</td>";
+            html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_r\"" + (d.p.g[i].includes("r") ? " checked" : "") + " title=\"read\" /></td>";
+            html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_w\"" + (d.p.g[i].includes("w") ? " checked" : "") + " title=\"write\" /></td>";
+            html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_d\"" + (d.p.g[i].includes("d") ? " checked" : "") + " title=\"delete\" /></td>";
+            html += "<td><input type=\"checkbox\" id=\"p_g_" + i + "_x\"" + (d.p.g[i].includes("x") ? " checked" : "") + " title=\"execute\" /></td>";
+            row.html(html);
+            row.appendTo("#tbl_permissions");
+          }
+          
+          $('#tbl_permissions_container').show();
+        } else {
+          // not the owner - we may not edit the permissions
+          console.log("we are not the owner");
+          $('#tbl_permissions_container').hide();
         }
       }
       
       function objView(id) {
-        editModeOff();
         openObjEditor(id);
+        editModeOff();
       }
       
       function objEdit(id) {
-        editModeOn();
         openObjEditor(id);
+        editModeOn();
       }
       
       function objDelete(id) {
@@ -240,7 +275,9 @@
               // id
               marker.ajnaObjId,
               // updated coordinates
-              { coordinates: ajna.GeoPoint(event.latLng.lat(), event.latLng.lng()) },
+              { 
+                coordinates: ajna.GeoPoint(event.latLng.lat(), event.latLng.lng())
+              },
               // onSuccess
               () => { console.log("success :-)"); },
               // onError
@@ -343,16 +380,25 @@
         return p;
       }
       
+      
       function saveObject() {
         var id = $("#objectModalObjectId").val();
+        var o = ajna.getObject(id);
+        var d_old = o.doc.data();
+        
         var d = {
           name: $("#inpName").val(),
           description: $("#inpDesc").val(),
-          coordinates: ajna.GeoPoint(parseFloat($("#inpLat").val()), parseFloat($("#inpLong").val())),
-          p: buildPermissionObject()
+          coordinates: ajna.GeoPoint(parseFloat($("#inpLat").val()), parseFloat($("#inpLong").val()))
         }
         
-        ajna.setObject(id, d, () => {
+        // we are only allowed to write new permissions when we are the owner of the object
+        if (ajna.checkPermission(d_old.p, 'owner', d_old.owner)) {
+          d.p = buildPermissionObject();
+        }
+        console.log("saving: ", d)
+        
+        ajna.setObject(id, d, (r) => {
           // onSuccess
           alert('object saved successfully');
           $('#objectModal').foundation('close');
@@ -492,8 +538,17 @@
           </div>
         </div>
         
+        <div class="grid-x grid-margin-x">
+          <div class="cell small-2">
+            <label for="txtMyPerm" class="text-right middle">my perms</label>
+          </div>
+          <div class="cell small-8">
+            <div class="alwaysOn" id="txtMyPerm" style="margin-top:7px; margin-left:9px;">bla</div>
+          </div>
+        </div>
+        
         <!-- user/group permissions -->
-        <table class="editOn hover unstriped">
+        <table class="editOn hover unstriped" id="tbl_permissions_container">
           <thead>
             <tr>
               <td>who</td>
@@ -529,7 +584,8 @@
         map = new google.maps.Map(document.getElementById('map'), {
           center: {lat: 50.451356, lng: 7.536334},
           zoom: 18,
-          mapTypeId: 'terrain'
+          mapTypeId: 'terrain',
+          maxZoom: 28
         });
         google.maps.event.addListener(map, "rightclick", (event) => { 
           if (confirm('create a new object here?')) {

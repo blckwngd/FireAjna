@@ -154,10 +154,12 @@ class AjnaConnector {
   
   // save an object to the database.
   setObject (id, data, onSuccess, onError) {
-    this.geocollection.doc( id ).set( data, { merge: true } ).then(() => {
+    var dataObj = {};
+    console.log("updating ", data);
+    this.geocollection.doc( id ).update( data ).then(() => {
       if (onSuccess) onSuccess();
     }, (error) => {
-      console.log('Error: ' + error);
+      console.log('Error: ', error);
       if (onError) onError();
     });
   }
