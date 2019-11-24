@@ -68,10 +68,10 @@ class AjnaConnector {
   }
   
   // handle an object received from geofirestore
-  _handleObject( doc ) {
-    if (!this.objects[doc.id]) { 
+  _handleObject( doc, tag ) {
+    if (!this.objects[doc.id]) {
       // retrieved a new (previously unknown) object
-      this.objects[doc.id] = new AjnaObject(doc, this.geocollection);
+      this.objects[doc.id] = new AjnaObject(doc, this);
       if (this.handler.object_retrieved)
         this.handler.object_retrieved( this.objects[doc.id] );
     } else {
@@ -81,33 +81,69 @@ class AjnaConnector {
         this.handler.object_updated( this.objects[doc.id] );
       }
     }
+    if (tag && Array.isArray(this.objects[doc.id].tags)) this.objects[doc.id].tags.push( tag );
   }
   
   GeoPoint( latitude, longitude ) {
     return new this.firebase.firestore.GeoPoint(latitude, longitude);
   }
   
+  // unpermissioned
+  _snapshot_handler( querySnapshot, tag ) {
+      querySnapshot.docChanges().forEach( change => {
+        switch(change.type) {
+          case "removed":
+            this._remove_object(change.doc.id);
+            break;
+          default:
+            this._handleObject( change.doc, tag );
+        }
+      });
+  }
+  
+  _remove_object(id) {
+    if (!this.objects[id]) {
+      return;
+    }
+    console.log("object left: " + id);
+    if ( this.handler['object_left'] !== false ) {
+      this.handler['object_left']( this.objects[id] );
+    }
+    delete(this.objects[id]);
+  }
+  
+  cleanup() {
+    for(var i in this.objects) {
+      if ( Array.isArray( this.objects[i].tags ) && ( this.objects[i].tags.length == 0 ) ) {
+        this._remove_object(this.objects[i]);
+      }
+    }
+  }
+  
   observe( location, radius ) {
     this.observed.location = location;
-    this.observed.radius = radius;
+    this.observed.radius = radius; // GeoFireStore works with km
     
-    var snapshot_handler = function(querySnapshot) {// Received query snapshot
-      querySnapshot.docs.forEach(doc => {
-        this._handleObject( doc );
-      });
-    };
+    if(!location)
+      return false;
     
     this.geoquery = this.geocollection
-      .near({ center: location, radius: radius });
-    // Testobjekt
-    //this.geoquery.where('name', '==', 'GeoFireTestObjekt').onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+      .near({ center: location, radius: radius/1000 });
+    
+    // untag all objects
+    for (var i in this.objects) { this.objects[i].tags = [] };
+      
     // RULE: !isPermissioned(resource.data.d)
-    this.geoquery.where('p', '==', null).onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+    this.q1 = this.geoquery.where('p', '==', null);
+    this.q1.onSnapshot((qS) => {this._snapshot_handler(qS, 1)}, (err) => { console.log( 'Encountered error: ', err ); });
     // RULE: hasAnonymousPerm(resource.data.d, 'r')
-    this.geoquery.where('p.a', 'array-contains', 'r').onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+    this.q2 = this.geoquery.where('p.a', 'array-contains', 'r');
+    this.q2.onSnapshot((qS) => {this._snapshot_handler(qS, 2)}, (err) => { console.log( 'Encountered error: ', err ); });
+
     // RULE: isOwner()
     if (this.user && this.user.uid) {
-      this.geoquery.where('owner', '==', this.user.uid).onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+      this.q3 = this.geoquery.where('owner', '==', this.user.uid);
+      this.q3.onSnapshot((qS) => {this._snapshot_handler(qS, 3)}, (err) => { console.log( 'Encountered error: ', err ); });
     }
     // RULE: hasPublicPerm(resource.data.d, 'read');
 //    this.geoquery.where('permissions', '!=', null).where(onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
@@ -155,7 +191,6 @@ class AjnaConnector {
   // save an object to the database.
   setObject (id, data, onSuccess, onError) {
     var dataObj = {};
-    console.log("updating ", data);
     this.geocollection.doc( id ).update( data ).then(() => {
       if (onSuccess) onSuccess();
     }, (error) => {
@@ -171,13 +206,13 @@ class AjnaConnector {
     if (permissionSet) {
       // anonymous permissions
       if (permissionSet.a && permissionSet.a.includes(perm))
-      { console.log('anon permission OK'); return true; }
+      { return true; }
       // registered-user permissions
       if (this.user.uid && permissionSet.r && permissionSet.r.includes(perm))
-      { console.log('registered permission OK'); return true; }
+      { return true; }
       // user permissions
       if (permissionSet.u && permissionSet.u[this.user.uid] && permissionSet.u[this.user.uid].includes(perm))
-      { console.log('user permission OK'); return true; }
+      { return true; }
       console.log("no matching permission. access denied.");
       return false;
     }
@@ -190,7 +225,7 @@ class AjnaConnector {
 
 class AjnaObject {
   
-  constructor( doc, geocollection ) {
+  constructor( doc, ajna ) {
     
     this.handler = {
       changed: false,
@@ -199,9 +234,10 @@ class AjnaObject {
       move: false
     }
     
+    this.ajna = ajna;
     this.id = doc.id || false;
     this.doc = doc || false;
-    this.geocollection = geocollection;
+    this.geocollection = ajna.geocollection;
   }
   
   /**
@@ -232,12 +268,28 @@ class AjnaObject {
   /**
    * sends a message to the objects inbox
    */
-  send ( sender, type, message ) {
+  send( type, message ) {
     // TODO: attach $message of type $type to the objects inbox 
+    var data = {
+      type: type,
+      parameters: ((typeof message)=="undefined") ? "undefined" : message
+    };
+    console.log(this.id, this.doc);
+    console.log("data", data);
+    this.ajna.firestore.collection("objects").doc( this.id ).collection('inbox').add( data ).then(() => {
+      console.log("message sent successfully");
+    }, (error) => {
+      console.log("error: ", error);
+    });
   }
   
   set( data ) {
     this.geocollection.doc( this.id ).set( data, { merge: true } );
+  }
+  
+  executeAction( name, params ) {
+    console.log("yayyyyy executing " + name + "!!!");
+    this.send( name, params );
   }
   
 }

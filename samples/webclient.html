@@ -103,13 +103,26 @@
         updateMapMarker(obj);
       });
       
+      ajna.on('object_left', (obj) => {
+        console.log(obj.id + " has left the building!");
+        removeTableRow(obj);
+        removeMapMarker(obj);
+      });
+      
       window.onload = function() {        
         // init
         $('#logoutButton').hide();
         editModeOff();
         ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 100);
       }
+      
+      window.setInterval(ajna.cleanup.bind(ajna), 3000);
 
+      function executeAction(id, aname) {
+        var parameters = "testparam";
+        ajna.getObject(id).executeAction(aname, parameters);
+      }
+      
       var editMode=false;
       function toggleEditMode() {
         editMode ? editModeOff() : editModeOn();
@@ -154,6 +167,36 @@
         $('#inpLat').val(d.coordinates._lat);
         $('#txtLat').html(d.coordinates._lat);
         
+        // action editor
+        $("#tbl_actions_editOn tr").remove();
+        $("#tbl_actions_editOff tr").remove();
+        for (var aname in d.actions) {   
+          console.log("building action " + aname);        
+          console.log(d.actions[aname]);
+          // editOn
+          var row = $("<tr/>");
+          row.attr("id", "a_" + aname + "_editOn");
+          var html = "<td><input type=\"text\" id=\"a_name_" + aname + "\" value=\"" + aname + "\" title=\"name\" /></td>";
+          html += "<td><select id=\"a_type_" + aname + "\" value=\"" + aname + "\" title=\"type\">" +
+            "<option " + (d.actions[aname].type=='string' ? ' selected' : '') + ">string</option>" + 
+            "<option " + (d.actions[aname].type=='int' ? ' selected' : '') + ">int</option>" + 
+            "<option " + (d.actions[aname].type=='float' ? ' selected' : '') + ">float</option>" + 
+            "<option " + (d.actions[aname].type=='bool' ? ' selected' : '') + ">bool</option>" + 
+            "</select></td>";
+          html += "<td><a class=\"button small\" disabled>send</a></td>";
+          row.html(html);
+          row.appendTo("#tbl_actions_editOn");
+          // editOff
+          row = row.clone();
+          row.attr("id", "a_" + aname + "_editOn");
+          var html = "<td>" + aname + "</td>";
+          html += "<td>" + d.actions[aname].type + "</td>";
+          html += "<td><a class=\"button small\" onClick=\"executeAction('" + id + "', '" + aname + "');\">send</a></td>";
+          row.html(html);
+          row.appendTo("#tbl_actions_editOff");
+        }
+        
+        // permission editor
         var myPerms = [];
         if (ajna.checkPermission(d.p, 'owner', d.owner))
           myPerms.push('<b>owner</b>');
@@ -171,9 +214,6 @@
         
         if (ajna.checkPermission(d.p, 'owner', d.owner)) {
           var row = $("<tr/>");
-          var cb = $("<input>");
-          cb.attr("type", "checkbox");
-          cb.attr("title", "perm");
           $("#tbl_permissions tr").remove();
           // anonymous permissions
           row.attr("id", "p_a");
@@ -269,7 +309,7 @@
           // create a new marker on the map
           var marker = new google.maps.Marker(options);
           
-          google.maps.event.addListener(marker, "dragend", (event) => {
+          google.maps.event.addListener(marker, "idle", (event) => {
             // write changes back to firestore
             ajna.setObject (
               // id
@@ -286,6 +326,12 @@
           });
           google.maps.event.addListener(marker, "click", (event) => { editModeOff(); openObjEditor(obj.id); });
           markers[obj.id] = marker;
+        }
+      }
+      
+      function removeMapMarker(obj) {
+        if (obj.id in markers) {
+          markers[obj.id].setMap(null);
         }
       }
       
@@ -313,6 +359,10 @@
         }
       }
       
+      function removeTableRow(obj) {
+        $('#tr_' + obj.id).remove();
+      }
+      
       var geoWatcher = false;
       function toggleGPS() {
         if ($('#geoLocSwitch').is(':checked')) {          
@@ -320,11 +370,12 @@
           else { alert("Geolocation is not supported by this browser."); }
         } else {
           navigator.geolocation.clearWatch(geoWatcher);
+          geoWatcher = false;
         }
       }
       
       var me = false;
-      function updatePosition(position) {
+      function updatePosition(position, adjustMap) {
         // calculate GeoPoint (for Ajna and GMaps respectively)
         var p = ajna.GeoPoint(position.coords.latitude, position.coords.longitude);
         var l = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
@@ -346,7 +397,8 @@
           me.setPosition(l);
         }
         // move the Map to the new position
-        map.panTo(l);
+        if(adjustMap !== false)
+          map.panTo(l);
         // set the new position as center for watching for ajna objects
         ajna.observe(p, 1000);
       }
@@ -561,6 +613,30 @@
           <tbody id="tbl_permissions">
           </tbody>
         </table>
+        
+        <!-- available actions -->
+        <table class="hover unstriped editOn">
+          <thead>
+            <tr>
+              <td>name</td>
+              <td>type</td>
+              <td>execute</td>
+            </tr>
+          </thead>
+          <tbody id="tbl_actions_editOn">
+          </tbody>
+        </table>
+        <table class="hover unstriped editOff">
+          <thead>
+            <tr>
+              <td>name</td>
+              <td>type</td>
+              <td>execute</td>
+            </tr>
+          </thead>
+          <tbody id="tbl_actions_editOff">
+          </tbody>
+        </table>
               
       </form>
       
@@ -601,6 +677,20 @@
             }, (err) => {
               console.log("error: ", err)
             });
+          }
+        });
+        google.maps.event.addListener(map, "center_changed", () => { 
+          // "follow me" is deactivated => react to map panning
+          if (!geoWatcher) {
+            updatePosition(
+              {
+                coords: {
+                  latitude: map.getCenter().lat(),
+                  longitude: map.getCenter().lng()
+                }
+              },
+              false
+            )
           }
         });
       }
