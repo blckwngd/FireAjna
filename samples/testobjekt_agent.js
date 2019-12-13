@@ -7,7 +7,7 @@ const GeoFirestore = require( "geofirestore" ).GeoFirestore;
     
 const AjnaConnector = require( "../AjnaConnector/" );
 
-const demoObjectId = 'yLj36w3XGUHr2uTmyU5S';
+const demoObjectId = '32iQbukwj4Zia8gNFeFu';
 var demoObject = null;
 
 const ajna = new AjnaConnector( 
@@ -56,7 +56,19 @@ function tickDemoAgent( ) {
 function startDemoAgent( ) {
   console.log('starting up the agent..');
   var data = demoObject.doc.data();
-  ajna.observe( data.coordinates, 100);
+  
+  // listen for messages sent to the agent
+  demoObject.startMessageListener();
+  demoObject.on('message_received', ( id, msg ) => {
+    console.log( msg );
+    demoObject.consumeMessage( id );
+  });
+  
+  // observe the world with a radius of 100m
+  // ajna.observe( data.coordinates, 100);
+  
+  // let the agent act
   setInterval(tickDemoAgent, 5000);
   tickDemoAgent();
+  
 }

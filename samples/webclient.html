@@ -119,7 +119,16 @@
       window.setInterval(ajna.cleanup.bind(ajna), 3000);
 
       function executeAction(id, aname) {
-        var parameters = "testparam";
+        var parameters = null;
+        var type = $("#a_" + aname + "_val")[0].nodeName;
+        switch (type) {
+          case "SELECT":
+            parameters = $("#a_" + aname + "_val").find(":selected").val();
+            break;
+          default:
+            parameters = $("#a_" + aname + "_val").text();
+            break;
+        }
         ajna.getObject(id).executeAction(aname, parameters);
       }
       
@@ -176,8 +185,10 @@
           // editOn
           var row = $("<tr/>");
           row.attr("id", "a_" + aname + "_editOn");
+          row.attr("class", "action");
+          row.attr("name", aname);
           var html = "<td><input type=\"text\" id=\"a_name_" + aname + "\" value=\"" + aname + "\" title=\"name\" /></td>";
-          html += "<td><select id=\"a_type_" + aname + "\" value=\"" + aname + "\" title=\"type\">" +
+          html += "<td><select id=\"a_type_" + aname + "\" value=\"" + d.actions[aname].type + "\" title=\"type\">" +
             "<option " + (d.actions[aname].type=='string' ? ' selected' : '') + ">string</option>" + 
             "<option " + (d.actions[aname].type=='int' ? ' selected' : '') + ">int</option>" + 
             "<option " + (d.actions[aname].type=='float' ? ' selected' : '') + ">float</option>" + 
@@ -189,8 +200,20 @@
           // editOff
           row = row.clone();
           row.attr("id", "a_" + aname + "_editOn");
-          var html = "<td>" + aname + "</td>";
-          html += "<td>" + d.actions[aname].type + "</td>";
+          var html = "<td>" + aname + "</td><td>";
+          switch (d.actions[aname].type) {
+            case  'bool':
+              html += "<select id=\"a_" + aname + "_val\"><option value=\"true\">true</option><option value=\"false\">false</option></select>";
+              break;
+            case 'int':
+            case 'float':
+              html += "<input type=\"number\" id=\"a_" + aname + "_val\"/>";
+              break;
+            default:
+              html += "<input type=\"text\" id=\"a_" + aname + "_val\"/>";
+              break;
+          }
+          html += "</td>";
           html += "<td><a class=\"button small\" onClick=\"executeAction('" + id + "', '" + aname + "');\">send</a></td>";
           row.html(html);
           row.appendTo("#tbl_actions_editOff");
@@ -443,6 +466,17 @@
           description: $("#inpDesc").val(),
           coordinates: ajna.GeoPoint(parseFloat($("#inpLat").val()), parseFloat($("#inpLong").val()))
         }
+        
+        // action definitions
+        var actions = {};
+        $(".action").each(function () {
+          var name = $(this).attr("name");
+          var type = $("#a_type_" + name).find(":selected").val();
+          actions[name] = {
+            type:  type
+          };
+        });
+        d.actions = actions;
         
         // we are only allowed to write new permissions when we are the owner of the object
         if (ajna.checkPermission(d_old.p, 'owner', d_old.owner)) {

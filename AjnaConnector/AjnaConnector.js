@@ -33,6 +33,7 @@ class AjnaConnector {
     });
     
     // Initialize GeoFireStore
+    console.log(GeoFirestore);
     this.geofirestore = new GeoFirestore( this.firestore );
     
     // GeoCollection reference
@@ -238,6 +239,7 @@ class AjnaObject {
     this.id = doc.id || false;
     this.doc = doc || false;
     this.geocollection = ajna.geocollection;
+    this.inboxQuery = null;
   }
   
   /**
@@ -290,6 +292,37 @@ class AjnaObject {
   executeAction( name, params ) {
     console.log("yayyyyy executing " + name + "!!!");
     this.send( name, params );
+  }
+  
+  startMessageListener( ) {
+    console.log("start listening for inbox items");
+    // listen to inbox elements
+    var that = this;
+    this.ajna.firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).onSnapshot(
+      function(querySnapshot) {
+        console.log("querySnapshot!!");
+        querySnapshot.forEach( function(doc) {
+          if (that.handler.message_received) {
+            that.handler.message_received( doc.id, doc.data() )
+          }
+        });
+      }, (err) => {
+        console.log( 'Encountered error: ', err ); 
+      }
+    );
+  }
+  
+  consumeMessage( id ) {
+    this.ajna.firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).doc( id ).delete().then(
+      function() {
+        // message has been deleted
+        console.log("message consumed");
+      }
+    );
+  }
+  
+  stopMessageListener( ) {
+    // TODO
   }
   
 }
