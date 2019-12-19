@@ -16,6 +16,10 @@
     <script src="../AjnaConnector/AjnaConnector.js"></script>
     <script src="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.js"></script>
     <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.css" />
+    
+    <!-- TURF -->
+    <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+
     <style>
     #map {
       height: 100%;
@@ -41,7 +45,7 @@
       };
 
       // Initialize Firebase
-      const ajna = new AjnaConnector( firebaseConfig, firebase, GeoFirestore );
+      const ajna = new AjnaConnector( firebaseConfig );
       
       // Map
       var map;
@@ -423,7 +427,7 @@
         if(adjustMap !== false)
           map.panTo(l);
         // set the new position as center for watching for ajna objects
-        ajna.observe(p, 1000);
+        ajna.observe(p, 100000);
       }
       
       function buildPermissionObject () {
@@ -695,7 +699,7 @@
           center: {lat: 50.451356, lng: 7.536334},
           zoom: 18,
           mapTypeId: 'terrain',
-          maxZoom: 28
+          maxZoom: 56
         });
         google.maps.event.addListener(map, "rightclick", (event) => { 
           if (confirm('create a new object here?')) {

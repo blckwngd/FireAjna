@@ -1,7 +1,7 @@
 
 class AjnaConnector {
 
-  constructor( firebaseConfig, Firebase, GeoFirestore ) {
+  constructor( firebaseConfig ) {
     
     this.handler = {
       object_retrieved: false,
@@ -18,14 +18,29 @@ class AjnaConnector {
       radius: null
     };
 
+    // handle requires for web and nodejs
+    if( typeof turf == "undefined" ) {
+      this.turf = require('turf');
+      this.transformTranslate = require("@turf/transform-translate");
+    } else {
+      this.turf = turf;
+      this.transformTranslate = turf.transformTranslate;
+    }
+    var GFS = (typeof GeoFirestore == "undefined") ? require( "geofirestore" ).GeoFirestore : GeoFirestore;
+    if( typeof firebase == "undefined" ) {
+      this.firebase = require( "firebase/app" );
+      require( "firebase/auth" );
+      require( "firebase/firestore" );
+    } else {
+      this.firebase = firebase;
+    }
     // Initialize the Firebase SDK
-    this.firebase = Firebase;
     this.firebase.initializeApp( firebaseConfig );
     this.firestore = this.firebase.firestore();
     
     // handle logon callback
     this.firebase.auth().onAuthStateChanged(( user ) => {
-      if ( this.handler.auth_state_changed ) {
+      if( this.handler.auth_state_changed ) {
         this.user = user;
         this.handler.auth_state_changed( user );
         this.observe( this.observed.location, this.observed.radius )
@@ -33,8 +48,7 @@ class AjnaConnector {
     });
     
     // Initialize GeoFireStore
-    console.log(GeoFirestore);
-    this.geofirestore = new GeoFirestore( this.firestore );
+    this.geofirestore = new GFS( this.firestore );
     
     // GeoCollection reference
     this.geocollection = this.geofirestore.collection( 'objects' );
@@ -89,7 +103,6 @@ class AjnaConnector {
     return new this.firebase.firestore.GeoPoint(latitude, longitude);
   }
   
-  // unpermissioned
   _snapshot_handler( querySnapshot, tag ) {
       querySnapshot.docChanges().forEach( change => {
         switch(change.type) {
@@ -191,8 +204,15 @@ class AjnaConnector {
   
   // save an object to the database.
   setObject (id, data, onSuccess, onError) {
-    var dataObj = {};
-    this.geocollection.doc( id ).update( data ).then(() => {
+    var ajna = this;
+    this.geocollection.doc( id ).update( data ).then((docRef) => {
+      this.geocollection.doc( id ).get( ).then((docRef) => {
+        // update local copy of the object
+        ajna.objects[id].updateData( docRef );
+      }, (error) => {
+        console.log('Error: ', error);
+      });
+      
       if (onSuccess) onSuccess();
     }, (error) => {
       console.log('Error: ', error);
@@ -239,7 +259,8 @@ class AjnaObject {
     this.id = doc.id || false;
     this.doc = doc || false;
     this.geocollection = ajna.geocollection;
-    this.inboxQuery = null;
+    
+    //this.startObjectListener( );
   }
   
   /**
@@ -263,21 +284,39 @@ class AjnaObject {
   /**
    * moves the object to a specific location, given by latitude and longitude
    **/
-  move( location ) {
-    this.doc.location = new firebase.firestore.GeoPoint(location.lat, location.lon);
+  moveTo( location ) {
+    var data = { coordinates: this.ajna.GeoPoint( location.lat, location.lon ) };
+    this.ajna.setObject( 
+      this.id,
+      data,
+      () => { console.log( "move successfull" ); },
+      (err) => { console.log( "move unsuccessfull", err ); }
+    );
+  }
+  
+  /**
+   * moves the object by a given value
+   **/
+  moveBy( d, bearing ) {
+    var coordinates = this.doc.data().coordinates;
+    var point = this.ajna.turf.point([coordinates._long, coordinates._lat]);
+    var new_pos = this.ajna.transformTranslate( point, d/1000, bearing ); // translate by kilometers
+    this.moveTo( {lat: new_pos.geometry.coordinates[1], lon: new_pos.geometry.coordinates[0]} );
+  }
+  
+  moveForward( d ) {
+    var my_bearing = (typeof this.doc.bearing == "undefined") ? 0 : this.doc.bearing;
+    this.moveBy( d, my_bearing );
   }
   
   /**
    * sends a message to the objects inbox
    */
   send( type, message ) {
-    // TODO: attach $message of type $type to the objects inbox 
     var data = {
       type: type,
       parameters: ((typeof message)=="undefined") ? "undefined" : message
     };
-    console.log(this.id, this.doc);
-    console.log("data", data);
     this.ajna.firestore.collection("objects").doc( this.id ).collection('inbox').add( data ).then(() => {
       console.log("message sent successfully");
     }, (error) => {
@@ -289,8 +328,11 @@ class AjnaObject {
     this.geocollection.doc( this.id ).set( data, { merge: true } );
   }
   
+  updateData( data ) {
+    this.doc = data;
+  }
+  
   executeAction( name, params ) {
-    console.log("yayyyyy executing " + name + "!!!");
     this.send( name, params );
   }
   
@@ -300,7 +342,6 @@ class AjnaObject {
     var that = this;
     this.ajna.firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).onSnapshot(
       function(querySnapshot) {
-        console.log("querySnapshot!!");
         querySnapshot.forEach( function(doc) {
           if (that.handler.message_received) {
             that.handler.message_received( doc.id, doc.data() )

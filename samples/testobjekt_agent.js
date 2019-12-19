@@ -1,20 +1,28 @@
 const config = require( "./config.js" );
+const mqtt = require("mqtt");
 
-var Firebase = require( "firebase/app" );
-require( "firebase/auth" );
-require( "firebase/firestore" );
-const GeoFirestore = require( "geofirestore" ).GeoFirestore;
-    
+
+var client  = mqtt.connect( config.mqtt_uri );
+client.on('connect', function () {
+  console.log("mqtt connected");
+  client.subscribe('presence', function (err) {
+    if (!err) {
+      client.publish('presence', 'Hello mqtt')
+    }
+  })
+})
+client.on('error', function (err) {
+  console.log(err);
+})
+
+
+//const GeoFirestore = require( "geofirestore" ).GeoFirestore;  
 const AjnaConnector = require( "../AjnaConnector/" );
 
 const demoObjectId = '32iQbukwj4Zia8gNFeFu';
 var demoObject = null;
 
-const ajna = new AjnaConnector( 
-  config.firebaseConfig,
-  Firebase,
-  require( "geofirestore" ).GeoFirestore
-);
+const ajna = new AjnaConnector( config.firebaseConfig );
 
 ajna.login(config.username, config.password, function(error){
   // an error occured
@@ -47,6 +55,10 @@ ajna.on('object_updated', (obj) => {
 
 function tickDemoAgent( ) {
   console.log('tick...');
+  
+  // move
+  // demoObject.moveForward(1);
+  
   // act
   /*demoObject.set({
     description: "random data: " + Math.random()
@@ -61,6 +73,15 @@ function startDemoAgent( ) {
   demoObject.startMessageListener();
   demoObject.on('message_received', ( id, msg ) => {
     console.log( msg );
+    
+    switch (msg.type) {
+      case "testaction":
+        client.publish('scene', (msg.parameters=='true' ? 'fernsehzeit' : 'gutenacht'));
+        break;
+      default:
+        console.log("unknown action: " + msg.type);
+    }
+    
     demoObject.consumeMessage( id );
   });
   
@@ -68,7 +89,7 @@ function startDemoAgent( ) {
   // ajna.observe( data.coordinates, 100);
   
   // let the agent act
-  setInterval(tickDemoAgent, 5000);
-  tickDemoAgent();
+  // setInterval(tickDemoAgent, 5000);
+  // tickDemoAgent();
   
 }
