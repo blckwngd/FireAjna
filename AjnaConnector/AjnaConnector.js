@@ -241,6 +241,15 @@ class AjnaConnector {
     return true;
   }
   
+  getOffsetFromObserved(geoPoint) {
+    var lon1 = this.observed.location._long;
+    var lon2 = geoPoint._long;
+    var lat1 = this.observed.location._lat;
+    var lat2 = geoPoint._lat;
+    var dx = this.turf.distance(turf.point([lon2, lat2]), turf.point([lon1, lat2]));
+    var dy = this.turf.distance(turf.point([lon2, lat2]), turf.point([lon2, lat1]));
+    return [dx * 1000, dy * 1000]; // return in meters
+  }
 
 }
 

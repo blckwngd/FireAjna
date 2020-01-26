@@ -1,0 +1,162 @@
+<html>
+  <head>
+    <!-- AFRAME -->
+    <script src="https://aframe.io/releases/1.0.2/aframe.min.js"></script>
+    <script src="js/aframe-ar.min.js"></script>
+    
+    <!-- JQUERY -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    
+    <!-- AJNA -->
+    <script src="../AjnaConnector/AjnaConnector.js"></script>
+    
+    <!-- FIREBASE UI -->
+    <script src="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.css" />
+    
+    <!-- TURF -->
+    <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+    
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-firestore.js"></script>
+    <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>
+    
+    <script>
+      var firebaseConfig = {
+        apiKey: "AIzaSyAnRCIFgGZwGGOmjZ7R5juJ4LD34rv86iE",
+        authDomain: "fireajna.firebaseapp.com",
+        databaseURL: "https://fireajna.firebaseio.com",
+        projectId: "fireajna",
+        storageBucket: "fireajna.appspot.com",
+        messagingSenderId: "1041333232578",
+        appId: "1:1041333232578:web:d6e4f6941228c2ea"
+      };
+
+      // Initialize Firebase
+      const ajna = new AjnaConnector( firebaseConfig );
+      
+      // start signIn process
+      // Initialize the FirebaseUI Widget using Firebase.
+      var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
+      ui.start('#firebaseui-auth-container', {
+        signInOptions: [
+          ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
+        ],
+        callbacks: {
+          uiShown: function() {
+            document.getElementById('firebaseui-auth-container').style.display = 'none';
+          }
+        },
+        signInFlow: 'popup'
+      });
+      
+      ajna.on('auth_state_changed', function(user) {
+        if (user) {
+          // User is signed in.
+          console.log(user.email + " logged in");
+          var displayName = user.displayName;
+          var email = user.email;
+          var emailVerified = user.emailVerified;
+          var photoURL = user.photoURL;
+          var isAnonymous = user.isAnonymous;
+          var uid = user.uid;
+          var providerData = user.providerData;
+          $('#loginBtn').hide();
+          $('#logoutBtn').show();
+          // ...
+        } else {
+          console.log("user is signed out");
+          $('#loginBtn').show();
+          $('#logoutBtn').hide();
+        }
+      });
+      
+      function logout() {
+        console.log("logging out...");
+        ajna.logout();
+      }
+      
+      function showLoginWindow() {
+        document.getElementById('firebaseui-auth-container').style.display = 'block';
+      }
+      
+      ajna.on('object_retrieved', (obj) => {
+        console.log(obj.id + " has joined the game!");
+      });
+
+      ajna.on('object_updated', (obj) => {
+        console.log(obj.id + " has changed!");
+        var data = obj.doc.data();
+        console.log("coordinates: ", data.coordinates);
+        console.log("relative position: ", ajna.getOffsetFromObserved(data.coordinates));
+        updateSceneForObject(obj);
+      });
+      
+      ajna.on('object_left', (obj) => {
+        console.log(obj.id + " has left the building!");
+      });
+      
+      window.onload = function() {        
+        // init
+        ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 100);
+        toggleGPS();
+      }
+      
+      var geoWatcher = false;
+      function toggleGPS() {
+        if (geoWatcher == false) {          
+          if (navigator.geolocation) { geoWatcher = navigator.geolocation.watchPosition(updatePosition); }
+          else { alert("Geolocation is not supported by this browser."); }
+        } else {
+          navigator.geolocation.clearWatch(geoWatcher);
+          geoWatcher = false;
+        }
+      }
+      
+      function updatePosition(position) {
+        // calculate GeoPoint (for Ajna and GMaps respectively)
+        var p = ajna.GeoPoint(position.coords.latitude, position.coords.longitude);
+        // set the new position as center for watching for ajna objects
+        ajna.observe(p, 100000);
+      }
+      
+      function updateSceneForObject(obj) {
+        var o = ajna.getObject(obj.id);
+        var data = o.doc.data();
+        //var local_coords = ajna.getOffsetFromObserved(data.coordinates);
+        var sceneEl = document.querySelector('a-scene');
+        o.entity = document.createElement('a-box');
+        /*o.entity.setAttribute('geometry', {
+          primitive: 'box',
+          height: 3,
+          width: 1
+        });*/
+        o.entity.setAttribute('color', 'green');  
+        console.log("setting " + data.name + " coords to " + data.coordinates.latitude + "/" + data.coordinates.longitude);
+        o.entity.setAttribute('gps-entity-place', "latitude: " + data.coordinates.latitude + "; longitude: " + data.coordinates.longitude);
+        sceneEl.appendChild(o.entity);
+
+      }
+      
+      
+    </script>
+  </head>
+  <body>
+    <div style="position:absolute; top: 10px; right: 10px; z-index: 10000;">
+      <button onclick='showLoginWindow()' id='loginBtn'>login</button>
+      <button onclick='logout()' id='logoutBtn'>logout</button>
+    </div>
+    <div style="z-index: 10001;" id="firebaseui-auth-container"></div>
+    <!-- add artoolkit into your scene -->
+    <a-scene artoolkit device-orientation-permission-ui="enabled: true">
+      <!-- define your scene as usual -->
+      <a-box color="red" gps-entity-place="latitude: 50.45141406690712; longitude: 7.536073289087312"/>
+      <a-box color="blue" position="0 1 5"/>
+      <!-- define a camera inside the <a-marker-camera> -->
+      <a-camera gps-camera rotation-reader></a-camera>
+      
+    </a-scene>
+  </body>
+</html>
