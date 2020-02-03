@@ -1,6 +1,7 @@
 # FireAjna
 Ajna ecosystem - running on Firebase
 
+## +++ PRE-ALPHA / NOT READY FOR WORK! +++
 
 ## AjnaConnector - the JS package
 usable in browser and from NodeJS.
