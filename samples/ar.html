@@ -40,17 +40,6 @@
       // start signIn process
       // Initialize the FirebaseUI Widget using Firebase.
       var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
-      ui.start('#firebaseui-auth-container', {
-        signInOptions: [
-          ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
-        ],
-        callbacks: {
-          uiShown: function() {
-            document.getElementById('firebaseui-auth-container').style.display = 'none';
-          }
-        },
-        signInFlow: 'popup'
-      });
       
       ajna.on('auth_state_changed', function(user) {
         if (user) {
@@ -79,19 +68,37 @@
       }
       
       function showLoginWindow() {
-        document.getElementById('firebaseui-auth-container').style.display = 'block';
+        document.getElementById('firebaseui-auth-container').style.display = 'block';        
+        ui.start('#firebaseui-auth-container', {
+          signInOptions: [
+            ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
+          ],
+          callbacks: {
+            signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+              console.log("AUTH");
+              console.log(authResult);
+              // User successfully signed in.
+              // Return type determines whether we continue the redirect automatically
+              // or whether we leave that to developer to handle.
+              return true;
+            },
+            uiShown: function() {
+              document.getElementById('firebaseui-auth-container').style.display = 'none';
+            }
+          },
+          signInFlow: 'popup'
+        });
       }
       
       ajna.on('object_retrieved', (obj) => {
         console.log(obj.id + " has joined the game!");
+        updateSceneForObject(obj);
       });
 
       ajna.on('object_updated', (obj) => {
-        console.log(obj.id + " has changed!");
         var data = obj.doc.data();
-        console.log("coordinates: ", data.coordinates);
-        console.log("relative position: ", ajna.getOffsetFromObserved(data.coordinates));
-        updateSceneForObject(obj);
+        console.log(data.name + " has changed! new coordinates: ", data.coordinates); 
+        // console.log("relative position: ", ajna.getOffsetFromObserved(data.coordinates));
       });
       
       ajna.on('object_left', (obj) => {
@@ -100,7 +107,7 @@
       
       window.onload = function() {        
         // init
-        ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 100);
+        ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 10000);
         toggleGPS();
       }
       
@@ -117,6 +124,7 @@
       
       function updatePosition(position) {
         // calculate GeoPoint (for Ajna and GMaps respectively)
+        console.log("new position: " + position.coords.latitude + "/" + position.coords.longitude); 
         var p = ajna.GeoPoint(position.coords.latitude, position.coords.longitude);
         // set the new position as center for watching for ajna objects
         ajna.observe(p, 100000);
@@ -125,21 +133,72 @@
       function updateSceneForObject(obj) {
         var o = ajna.getObject(obj.id);
         var data = o.doc.data();
+        
         //var local_coords = ajna.getOffsetFromObserved(data.coordinates);
         var sceneEl = document.querySelector('a-scene');
-        o.entity = document.createElement('a-box');
-        /*o.entity.setAttribute('geometry', {
-          primitive: 'box',
-          height: 3,
-          width: 1
-        });*/
+        console.log("ENTITY=", o.entity);
+        if (typeof o.entity == "undefined")
+          o.entity = document.createElement('a-box');
+        o.entity.setAttribute('id', 'el-' + o.id);  
         o.entity.setAttribute('color', 'green');  
         console.log("setting " + data.name + " coords to " + data.coordinates.latitude + "/" + data.coordinates.longitude);
-        o.entity.setAttribute('gps-entity-place', "latitude: " + data.coordinates.latitude + "; longitude: " + data.coordinates.longitude);
-        sceneEl.appendChild(o.entity);
-
+        
+        // text
+        //var t = o.entity.querySelectorAll('a-text');
+        // TODO
+        var t = document.createElement("a-text");
+        t.setAttribute('value', data.name);
+        t.setAttribute('color', "#ff0000");
+        t.setAttribute('position', "0 1 0");
+        t.setAttribute('align', "center");
+        o.entity.append(t);
+        var t2 = t.cloneNode(true);
+        t2.setAttribute('rotation', '0 180 0');
+        t2.setAttribute('position', '0 1 0');
+        o.entity.append(t2);
+        */
+        sceneEl.append(o.entity);
+        var e = sceneEl.querySelector('#el-' + o.id);
+        e.setAttribute('cursor-listener', '');
+        e.setAttribute('gps-entity-place', {'latitude': data.coordinates.latitude, 'longitude': data.coordinates.longitude});
+        
       }
-      
+
+      // Component to change to a sequential color on click.
+      AFRAME.registerComponent('cursor-listener', {
+        init: function () {
+          console.log("COMPONENT INIT");
+          var lastIndex = -1;
+          var COLORS = ['red', 'green', 'blue'];
+          this.el.addEventListener('click', function (evt) {
+            lastIndex = (lastIndex + 1) % COLORS.length;
+            this.setAttribute('material', 'color', COLORS[lastIndex]);
+            console.log('I was clicked at: ', evt.detail.intersection.point);
+            console.log(this);
+          });
+        }
+      });
+
+      AFRAME.registerComponent('ajna-object', {
+        schema: {
+          color: {default: 'red'},
+          objectId: { default: 'dummy'}
+        },
+
+        init: function () {
+          var data = this.data;
+          var el = this.el;  // <a-box>
+          var defaultColor = el.getAttribute('material').color;
+
+          el.addEventListener('mouseenter', function () {
+            el.setAttribute('color', data.color);
+          });
+
+          el.addEventListener('mouseleave', function () {
+            el.setAttribute('color', defaultColor);
+          });
+        }
+      });
       
     </script>
   </head>
@@ -152,10 +211,19 @@
     <!-- add artoolkit into your scene -->
     <a-scene artoolkit device-orientation-permission-ui="enabled: true">
       <!-- define your scene as usual -->
-      <a-box color="red" gps-entity-place="latitude: 50.45141406690712; longitude: 7.536073289087312"/>
-      <a-box color="blue" position="0 1 5"/>
+      <a-box color="blue" position="-5 0 -5" cursor-listener>
+        <a-text value="Hello, World!" color="#ff0000" position="0 1 0" align="center"></a-text>
+        <a-text value="Hello, World!" color="#ff0000" position="0 1 0" align="center" rotation="0 180 0"></a-text>
+      </a-box>
       <!-- define a camera inside the <a-marker-camera> -->
-      <a-camera gps-camera rotation-reader></a-camera>
+      <a-camera gps-camera rotation-reader>
+        <!--<a-cursor></a-cursor>-->
+        <a-entity cursor="fuse: true; fuseTimeout: 1000"
+          position="0 0 -1"
+          geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+          material="color: red; shader: flat">
+        </a-entity>
+      </a-camera>
       
     </a-scene>
   </body>
