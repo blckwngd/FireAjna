@@ -53,6 +53,8 @@
       // Map
       var map;
       
+      var popup;
+      
       // start signIn process
       // Initialize the FirebaseUI Widget using Firebase.
       var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
@@ -118,6 +120,7 @@
       
       window.onload = function() {        
         // init
+        popup = new Foundation.Reveal($('#objectModal'));
         $('#logoutButton').hide();
         editModeOff();
         ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 100);
@@ -145,7 +148,8 @@
       }
       
       function editModeOn() {
-        var o = ajna.getObject($('#objectModalObjectId').val());
+        var o = ajna.getObject($('#
+                                 ObjectId').val());
         var d = o.doc.data();
         if (ajna.checkPermission(d.p, 'w', d.owner)) {
           $('#objectModal').find('.editOff').hide();
@@ -170,7 +174,7 @@
       }
       
       function openObjEditor(id) {
-        $('#objectModal').foundation('open');
+        popup.open();
         var o = ajna.getObject(id);
         var d = o.doc.data();
         $('#objectModalObjectId').val(id);
@@ -494,7 +498,7 @@
         ajna.setObject(id, d, (r) => {
           // onSuccess
           alert('object saved successfully');
-          $('#objectModal').foundation('close');
+          popup.close();
         }, (err) => {
           // onError
           alert('Error!');
