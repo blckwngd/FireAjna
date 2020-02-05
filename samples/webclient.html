@@ -150,7 +150,7 @@
       }
       
       function editModeOn() {
-        console.log("editing object " + $('#ObjectId').val());
+        console.log("editing object " + $('#objectModalObjectId').val());
         var o = ajna.getObject($('#ObjectId').val());
         console.log(o);
         var d = o.doc.data();
