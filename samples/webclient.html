@@ -150,8 +150,11 @@
       }
       
       function editModeOn() {
+        console.log("editing object " + $('#ObjectId').val());
         var o = ajna.getObject($('#ObjectId').val());
+        console.log(o);
         var d = o.doc.data();
+        console.log(d);
         if (ajna.checkPermission(d.p, 'w', d.owner)) {
           $('#objectModal').find('.editOff').hide();
           $('#objectModal').find('.editOn').show();
