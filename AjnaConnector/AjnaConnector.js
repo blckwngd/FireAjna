@@ -205,8 +205,11 @@ class AjnaConnector {
   // save an object to the database.
   setObject (id, data, onSuccess, onError) {
     var ajna = this;
+    console.log("check 2");
     this.geocollection.doc( id ).update( data ).then((docRef) => {
+      console.log("check 3");
       this.geocollection.doc( id ).get( ).then((docRef) => {
+        console.log("check 4");
         // update local copy of the object
         ajna.objects[id].updateData( docRef );
       }, (error) => {
@@ -222,17 +225,17 @@ class AjnaConnector {
   
   // checks if the user has a specific permission on a given permissionSet
   checkPermission(permissionSet, perm, owner) {
-    if(owner && owner===this.user.uid)
+    if(owner && this.user && owner===this.user.uid)
       return true;
     if (permissionSet) {
       // anonymous permissions
       if (permissionSet.a && permissionSet.a.includes(perm))
       { return true; }
       // registered-user permissions
-      if (this.user.uid && permissionSet.r && permissionSet.r.includes(perm))
+      if (this.user && this.user.uid && permissionSet.r && permissionSet.r.includes(perm))
       { return true; }
       // user permissions
-      if (permissionSet.u && permissionSet.u[this.user.uid] && permissionSet.u[this.user.uid].includes(perm))
+      if (this.user && permissionSet.u && permissionSet.u[this.user.uid] && permissionSet.u[this.user.uid].includes(perm))
       { return true; }
       console.log("no matching permission. access denied.");
       return false;

@@ -347,7 +347,8 @@
           // create a new marker on the map
           var marker = new google.maps.Marker(options);
           
-          google.maps.event.addListener(marker, "idle", (event) => {
+          marker.addListener("dragend", (event) => {
+          
             // write changes back to firestore
             ajna.setObject (
               // id
