@@ -48,6 +48,8 @@
       var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
       
       ajna.on('auth_state_changed', function(user) {
+	    console.log("USER");
+	    console.log(user);
         if (user) {
           // User is signed in.
           console.log(user.email + " logged in");
@@ -97,13 +99,10 @@
       }
       
       ajna.on('object_retrieved', (obj) => {
-        console.log(obj.id + " has joined the game!");
         updateSceneForObject(obj);
       });
 
       ajna.on('object_updated', (obj) => {
-        var data = obj.doc.data();
-        console.log(data.name + " has changed! new coordinates: ", data.coordinates); 
         // console.log("relative position: ", ajna.getOffsetFromObserved(data.coordinates));
         updateSceneForObject(obj);
       });
@@ -114,7 +113,6 @@
       
       window.onload = function() {        
         // init
-        ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 10000);
         toggleGPS();
       }
       
@@ -131,92 +129,87 @@
       
       function updatePosition(position) {
         // calculate GeoPoint (for Ajna and GMaps respectively)
-        console.log("new position: " + position.coords.latitude + "/" + position.coords.longitude); 
         var p = ajna.GeoPoint(position.coords.latitude, position.coords.longitude);
         // set the new position as center for watching for ajna objects
-        ajna.observe(p, 100000);
+        ajna.observe(p, 1000);
       }
+	  
       
       function updateSceneForObject(obj) {
         var o = ajna.getObject(obj.id);
         var data = o.doc.data();
         
-        console.log("setting " + data.name + " coords to " + data.coordinates.latitude + "/" + data.coordinates.longitude);
-        console.log(o.entity);
-        
         //var local_coords = ajna.getOffsetFromObserved(data.coordinates);
         var sceneEl = document.querySelector('a-scene');
-        console.log("ENTITY=", o.entity);
         if (typeof o.entity == "undefined") {
-          o.entity = document.createElement('a-box');
-          var t = document.createElement('a-text');
-          var t2 = document.createElement('a-text');
-          o.entity.append(t);
-          o.entity.append(t2);
+          console.log("CREATING NEW ENTITY");
+          o.entity = document.createElement('a-entity');
+          o.entity.setAttribute("ajna-object", obj.id);
           sceneEl.append(o.entity);
+        } else {
+          console.log("UPDATING EXISTING ENTITY");
+          o.entity.components["ajna-object"].update( );
         }
-        o.entity.setAttribute('id', 'el-' + o.id);  
-        o.entity.setAttribute('color', 'green');  
-        o.entity.setAttribute('cursor-listener', '');
-        o.entity.setAttribute('gps-entity-place', {'latitude': data.coordinates.latitude, 'longitude': data.coordinates.longitude});
-        
-        // text
-        var txts = o.entity.querySelectorAll('a-text');
-        txts[0].setAttribute('value', data.name);
-        txts[0].setAttribute('color', "#ff0000");
-        txts[0].setAttribute('position', "0 1 0");
-        txts[0].setAttribute('align', "center");
-        txts[0].setAttribute('billboard', "");
-        /*
-        txts[1].setAttribute('rotation', '0 0 0');
-        txts[1].value = "___" + txts[0].value + "___";
-        txts[1].color = txts[0].color;
-        txts[1].align = txts[0].align;
-        txts[1].position = txts[0].position;
-        txts[1].setAttribute('rotation', '0 180 0');
-        /*
-        var e = sceneEl.querySelector('#el-' + o.id);
-        e.setAttribute('cursor-listener', '');
-        e.setAttribute('gps-entity-place', {'latitude': data.coordinates.latitude, 'longitude': data.coordinates.longitude});
-        */
-        
       }
 
       // Component to change to a sequential color on click.
       AFRAME.registerComponent('cursor-listener', {
         init: function () {
-          console.log("COMPONENT INIT");
           var lastIndex = -1;
           var COLORS = ['red', 'green', 'blue'];
           this.el.addEventListener('click', function (evt) {
             lastIndex = (lastIndex + 1) % COLORS.length;
             this.setAttribute('material', 'color', COLORS[lastIndex]);
-            console.log('I was clicked at: ', evt.detail.intersection.point);
-            console.log(this);
           });
         }
       });
       
       // Component to change to a sequential color on click.
       AFRAME.registerComponent('ajna-object', {
-        schema: {
-          id: {type: 'string', default: 'dummy'},
-          name: {type: 'string', default: 'dummy'},
-          description: {type: 'string', default: 'dummy'}
-        },
+        schema: { type: 'string', default: 'dummy' },
         init: function () {
-          var id = this.data.id;
+          var id = this.data;
+          console.log("object with id " + id + " LOADED");
+		  
           var lastIndex = -1;
           var COLORS = ['red', 'green', 'blue'];
           this.el.addEventListener('click', function (evt) {
             lastIndex = (lastIndex + 1) % COLORS.length;
             this.setAttribute('material', 'color', COLORS[lastIndex]);
-            console.log('Ajna object was clicked at: ', evt.detail.intersection.point);
-            console.log(this);
           });
         },
         update: function (oldData) {
-          console.log("UPDATING OBJECT");
+          var o = ajna.getObject( this.data );
+          if (!o) return;
+          var data = o.doc.data();
+          
+          console.log("UPDATING OBJECT " + data.name);
+          this.updateWithData(data);
+        },
+        updateWithData: function (data) {
+          // <a-entity ...> // Wrapper
+          this.el.setAttribute('gps-entity-place', {'latitude': data.coordinates.latitude, 'longitude': data.coordinates.longitude});
+          
+          // <a-box> // Placeholder for model
+          var box = this.el.querySelector('a-box');
+          if (box == null) {
+            box = document.createElement('a-box');
+            box.setAttribute('cursor-listener', '');
+            box.setAttribute('color', 'green');
+            this.el.append(box);
+          }
+          
+          // <a-text> // floating name
+          var txtName = this.el.querySelector('a-text');
+          if (txtName == null) {
+            txtName = document.createElement('a-text');
+            txtName.setAttribute('color', '#ff0000');
+            txtName.setAttribute('position', '0 1 0');
+            txtName.setAttribute('align', 'center');
+            this.el.append(txtName);
+          }
+          txtName.setAttribute('value', data.name);
+          txtName.setAttribute('billboard', "");
         }
       });
       
@@ -235,6 +228,9 @@
         <a-text billboard value="Hello, World!" color="#ff0000" position="0 1 0" align="center"></a-text>
         <!-- <a-text value="Hello, World!" color="#ff0000" position="0 1 0" align="center" rotation="0 180 0"></a-text> -->
       </a-box>
+	  
+	  <a-entity ajna-object="32iQbukwj4Zia8gNFeFu"></a-entity>
+
       <!-- define a camera inside the <a-marker-camera> -->
       <a-camera gps-camera rotation-reader>
         <!--<a-cursor></a-cursor>-->
