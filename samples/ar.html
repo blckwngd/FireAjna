@@ -1,0 +1,247 @@
+
+<html>
+  <head>
+    <!-- AFRAME -->
+    <script src="https://aframe.io/releases/1.0.2/aframe.min.js"></script>
+    <script src="js/aframe-ar.min.js"></script>
+    <script src="https://rawgit.com/blairmacintyre/aframe-look-at-billboard-component/master/dist/aframe-look-at-billboard-component.min.js"></script>
+
+    
+    <!-- JQUERY -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    
+    <!-- AJNA -->
+    <script src="../AjnaConnector/AjnaConnector.js"></script>
+    
+    <!-- FIREBASE UI -->
+    <script src="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.css" />
+    
+    <!-- TURF -->
+    <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+    
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-firestore.js"></script>
+    <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>
+    
+    <script>
+    
+      var cam_pos = new THREE.Vector3();
+      var cam_rot = new THREE.Quaternion();
+      
+      var firebaseConfig = {
+        apiKey: "AIzaSyAnRCIFgGZwGGOmjZ7R5juJ4LD34rv86iE",
+        authDomain: "fireajna.firebaseapp.com",
+        databaseURL: "https://fireajna.firebaseio.com",
+        projectId: "fireajna",
+        storageBucket: "fireajna.appspot.com",
+        messagingSenderId: "1041333232578",
+        appId: "1:1041333232578:web:d6e4f6941228c2ea"
+      };
+
+      // Initialize Firebase
+      const ajna = new AjnaConnector( firebaseConfig );
+      
+      // start signIn process
+      // Initialize the FirebaseUI Widget using Firebase.
+      var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
+      
+      ajna.on('auth_state_changed', function(user) {
+	    console.log("USER");
+	    console.log(user);
+        if (user) {
+          // User is signed in.
+          console.log(user.email + " logged in");
+          var displayName = user.displayName;
+          var email = user.email;
+          var emailVerified = user.emailVerified;
+          var photoURL = user.photoURL;
+          var isAnonymous = user.isAnonymous;
+          var uid = user.uid;
+          var providerData = user.providerData;
+          $('#loginBtn').hide();
+          $('#logoutBtn').show();
+          // ...
+        } else {
+          console.log("user is signed out");
+          $('#loginBtn').show();
+          $('#logoutBtn').hide();
+        }
+      });
+      
+      function logout() {
+        console.log("logging out...");
+        ajna.logout();
+      }
+      
+      function showLoginWindow() {
+        document.getElementById('firebaseui-auth-container').style.display = 'block';        
+        ui.start('#firebaseui-auth-container', {
+          signInOptions: [
+            ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
+          ],
+          callbacks: {
+            signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+              console.log("AUTH");
+              console.log(authResult);
+              // User successfully signed in.
+              // Return type determines whether we continue the redirect automatically
+              // or whether we leave that to developer to handle.
+              return true;
+            },
+            uiShown: function() {
+              document.getElementById('firebaseui-auth-container').style.display = 'none';
+            }
+          },
+          signInFlow: 'popup'
+        });
+      }
+      
+      ajna.on('object_retrieved', (obj) => {
+        updateSceneForObject(obj);
+      });
+
+      ajna.on('object_updated', (obj) => {
+        // console.log("relative position: ", ajna.getOffsetFromObserved(data.coordinates));
+        updateSceneForObject(obj);
+      });
+      
+      ajna.on('object_left', (obj) => {
+        console.log(obj.id + " has left the building!");
+      });
+      
+      window.onload = function() {        
+        // init
+        toggleGPS();
+      }
+      
+      var geoWatcher = false;
+      function toggleGPS() {
+        if (geoWatcher == false) {          
+          if (navigator.geolocation) { geoWatcher = navigator.geolocation.watchPosition(updatePosition); }
+          else { alert("Geolocation is not supported by this browser."); }
+        } else {
+          navigator.geolocation.clearWatch(geoWatcher);
+          geoWatcher = false;
+        }
+      }
+      
+      function updatePosition(position) {
+        // calculate GeoPoint (for Ajna and GMaps respectively)
+        var p = ajna.GeoPoint(position.coords.latitude, position.coords.longitude);
+        // set the new position as center for watching for ajna objects
+        ajna.observe(p, 1000);
+      }
+	  
+      
+      function updateSceneForObject(obj) {
+        var o = ajna.getObject(obj.id);
+        var data = o.doc.data();
+        
+        //var local_coords = ajna.getOffsetFromObserved(data.coordinates);
+        var sceneEl = document.querySelector('a-scene');
+        if (typeof o.entity == "undefined") {
+          console.log("CREATING NEW ENTITY");
+          o.entity = document.createElement('a-entity');
+          o.entity.setAttribute("ajna-object", obj.id);
+          sceneEl.append(o.entity);
+        } else {
+          console.log("UPDATING EXISTING ENTITY");
+          o.entity.components["ajna-object"].update( );
+        }
+      }
+
+      // Component to change to a sequential color on click.
+      AFRAME.registerComponent('cursor-listener', {
+        init: function () {
+          var lastIndex = -1;
+          var COLORS = ['red', 'green', 'blue'];
+          this.el.addEventListener('click', function (evt) {
+            lastIndex = (lastIndex + 1) % COLORS.length;
+            this.setAttribute('material', 'color', COLORS[lastIndex]);
+          });
+        }
+      });
+      
+      // Component to change to a sequential color on click.
+      AFRAME.registerComponent('ajna-object', {
+        schema: { type: 'string', default: 'dummy' },
+        init: function () {
+          var id = this.data;
+          console.log("object with id " + id + " LOADED");
+		  
+          var lastIndex = -1;
+          var COLORS = ['red', 'green', 'blue'];
+          this.el.addEventListener('click', function (evt) {
+            lastIndex = (lastIndex + 1) % COLORS.length;
+            this.setAttribute('material', 'color', COLORS[lastIndex]);
+          });
+        },
+        update: function (oldData) {
+          var o = ajna.getObject( this.data );
+          if (!o) return;
+          var data = o.doc.data();
+          
+          console.log("UPDATING OBJECT " + data.name);
+          this.updateWithData(data);
+        },
+        updateWithData: function (data) {
+          // <a-entity ...> // Wrapper
+          this.el.setAttribute('gps-entity-place', {'latitude': data.coordinates.latitude, 'longitude': data.coordinates.longitude});
+          
+          // <a-box> // Placeholder for model
+          var box = this.el.querySelector('a-box');
+          if (box == null) {
+            box = document.createElement('a-box');
+            box.setAttribute('cursor-listener', '');
+            box.setAttribute('color', 'green');
+            this.el.append(box);
+          }
+          
+          // <a-text> // floating name
+          var txtName = this.el.querySelector('a-text');
+          if (txtName == null) {
+            txtName = document.createElement('a-text');
+            txtName.setAttribute('color', '#ff0000');
+            txtName.setAttribute('position', '0 1 0');
+            txtName.setAttribute('align', 'center');
+            this.el.append(txtName);
+          }
+          txtName.setAttribute('value', data.name);
+          txtName.setAttribute('billboard', "");
+        }
+      });
+      
+    </script>
+  </head>
+  <body>
+    <div style="position:absolute; top: 10px; right: 10px; z-index: 10000;">
+      <button onclick='showLoginWindow()' id='loginBtn'>login</button>
+      <button onclick='logout()' id='logoutBtn'>logout</button>
+    </div>
+    <div style="z-index: 10001;" id="firebaseui-auth-container"></div>
+    <!-- add artoolkit into your scene -->
+    <a-scene artoolkit device-orientation-permission-ui="enabled: true">
+      <!-- define your scene as usual -->
+      <a-box color="blue" ajna-object="id: dummy" position="-5 0 -5" cursor-listener>
+        <a-text billboard value="Hello, World!" color="#ff0000" position="0 1 0" align="center"></a-text>
+        <!-- <a-text value="Hello, World!" color="#ff0000" position="0 1 0" align="center" rotation="0 180 0"></a-text> -->
+      </a-box>
+	  
+	  <a-entity ajna-object="32iQbukwj4Zia8gNFeFu"></a-entity>
+
+      <!-- define a camera inside the <a-marker-camera> -->
+      <a-camera gps-camera rotation-reader>
+        <!--<a-cursor></a-cursor>-->
+        <a-entity cursor="fuse: true; fuseTimeout: 1000"
+          position="0 0 -1"
+          geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+          material="color: red; shader: flat">
+        </a-entity>
+      </a-camera>
+      
+    </a-scene>
+  </body>
+</html>
