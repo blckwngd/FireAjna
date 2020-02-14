@@ -28,8 +28,7 @@
     
     <script>
     
-      var cam_pos = new THREE.Vector3();
-      var cam_rot = new THREE.Quaternion();
+      var selected = false;
       
       var firebaseConfig = {
         apiKey: "AIzaSyAnRCIFgGZwGGOmjZ7R5juJ4LD34rv86iE",
@@ -148,7 +147,6 @@
           o.entity.setAttribute("ajna-object", obj.id);
           sceneEl.append(o.entity);
         } else {
-          console.log("UPDATING EXISTING ENTITY");
           o.entity.components["ajna-object"].update( );
         }
       }
@@ -177,14 +175,17 @@
           this.el.addEventListener('click', function (evt) {
             lastIndex = (lastIndex + 1) % COLORS.length;
             this.setAttribute('material', 'color', COLORS[lastIndex]);
+			
+			selected = this;
+			console.log(this.components["gps-entity-place"]);
+			this.setAttribute('gps-entity-place', 'latitude: 10; longitude: 10');
+			
           });
         },
         update: function (oldData) {
           var o = ajna.getObject( this.data );
           if (!o) return;
           var data = o.doc.data();
-          
-          console.log("UPDATING OBJECT " + data.name);
           this.updateWithData(data);
         },
         updateWithData: function (data) {
