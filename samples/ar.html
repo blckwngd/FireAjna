@@ -194,13 +194,8 @@
           
           // must be called explicitely when the position of an existing object is updated
           this.el.components["gps-entity-place"]._updatePosition();
-        },
-        
-        displayAvailableActions: function () {
-          for (var i in this.dummyActions) {
-            
-          }
         }
+
       });
       
       function populatePopup(id) {
@@ -217,6 +212,9 @@
           var td = $("<td/>");
           var btn = $("<input type=\"button\" value=\"" + aname + "\"/>");
           btn.appendTo(td);
+		  btn[0].onclick = function(e) {
+			ajna.getObject($("#popId").val()).executeAction(this.value);
+		  };
           td.appendTo(row);
           row.appendTo("#popAct");
         }
@@ -225,14 +223,17 @@
     </script>
   </head>
   <body>
+  
+	<!-- LOGIN BUTTONS -->
     <div style="position:absolute; top: 10px; right: 10px; z-index: 10000;">
       <button onclick='showLoginWindow()' id='loginBtn'>login</button>
       <button onclick='logout()' id='logoutBtn'>logout</button>
     </div>
     
-    <div id="popup" style="position:absolute; top: 20px; z-index:10001; background: #ffffff; opacity: 0.5;">
+	<!-- OBJECT POPUP -->
+    <div id="popup" style="position:absolute; top: 20px; left:20px; z-index:10001; background: #ffffff; opacity: 0.5;">
       <h2 id="popName">Objectname</h2>
-      <div id="popDesc">Description</div>
+      <p id="popDesc">Description</p>
       <table id="popAct">
       </table>
       <input type="hidden" id="popId" value="dummy"/>
@@ -240,8 +241,10 @@
       <button onclick="$('#popup').toggle()">Close</button>
     </div>
     
+	<!-- FIREBASE AUTH POPUP -->
     <div style="z-index: 10001;" id="firebaseui-auth-container"></div>
-    <!-- add artoolkit into your scene -->
+	
+    <!-- AFRAME SCENE -->
     <a-scene artoolkit device-orientation-permission-ui="enabled: true">
       <!-- define your scene as usual -->
       <a-box color="blue" ajna-object position="-5 0 -5">
