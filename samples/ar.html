@@ -199,6 +199,20 @@
 
       });
       
+      function executeAction(id, aname) {
+        var parameters = null;
+        var type = $("#a_" + aname + "_val")[0].nodeName;
+        switch (type) {
+          case "SELECT":
+            parameters = $("#a_" + aname + "_val").find(":selected").val();
+            break;
+          default:
+            parameters = $("#a_" + aname + "_val").text();
+            break;
+        }
+        ajna.getObject(id).executeAction(aname, parameters);
+      }
+      
       function populatePopup(id) {
         var o = ajna.getObject(id);
         var d = o.doc.data();
@@ -210,13 +224,23 @@
           var row = $("<tr/>");
           row.attr("id", "a_" + aname + "_editOn");
           row.attr("name", aname);
-          var td = $("<td/>");
-          var btn = $("<input type=\"button\" value=\"" + aname + "\"/>");
-          btn.appendTo(td);
-		  btn[0].onclick = function(e) {
-			ajna.getObject($("#popId").val()).executeAction(this.value);
-		  };
-          td.appendTo(row);
+          
+          var html = "<td>" + aname + "</td><td>";
+          switch (d.actions[aname].type) {
+            case  'bool':
+              html += "<select id=\"a_" + aname + "_val\"><option value=\"true\">true</option><option value=\"false\">false</option></select>";
+              break;
+            case 'int':
+            case 'float':
+              html += "<input type=\"number\" id=\"a_" + aname + "_val\"/>";
+              break;
+            default:
+              html += "<input type=\"text\" id=\"a_" + aname + "_val\"/>";
+              break;
+          }
+          html += "</td>";
+          html += "<td><input type=\"button\" value=\"send\" onClick=\"executeAction('" + id + "', '" + aname + "');\"/></td>";
+          row.html(html);
           row.appendTo("#popAct");
         }
       }

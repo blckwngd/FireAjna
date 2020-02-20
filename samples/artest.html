@@ -76,7 +76,7 @@
   </head>  
   <body>
 
-    <a-scene artoolkit>
+    <a-scene>
       <a-assets timeout="30000">
         <!-- Model source: https://sketchfab.com/3d-models/spinosaurus-2135501583704537907645bf723685e7
              Model author: https://sketchfab.com/VapTor
@@ -86,9 +86,6 @@
       
       <a-camera position="0 1.2 0"></a-camera>
       
-      <!-- Environment for 2D and VR viewing. It's auto-hidden in AR mode. -->
-      <a-entity environment="preset: forest; lighting: none; shadow: none; lightPosition: 0 2.15 0"
-                hide-in-ar-mode></a-entity>
       
       <a-entity id="dino" position="-1 0 -3" scale="0.5 0.5 0.5">
         <a-entity position="0 2.15 0" rotation="0 55 0"

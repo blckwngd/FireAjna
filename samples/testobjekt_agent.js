@@ -1,8 +1,8 @@
 const config = require( "./config.js" );
+const config_private = require( "./config_private.js" );
 const mqtt = require("mqtt");
 
-
-var client  = mqtt.connect( config.mqtt_uri );
+var client  = mqtt.connect( config_private.mqtt_uri );
 client.on('connect', function () {
   console.log("mqtt connected");
   client.subscribe('presence', function (err) {
@@ -24,7 +24,7 @@ var demoObject = null;
 
 const ajna = new AjnaConnector( config.firebaseConfig );
 
-ajna.login(config.username, config.password, function(error){
+ajna.login(config_private.username, config_private.password, function(error){
   // an error occured
   console.log("LOGON ERROR");
   console.log(error);
@@ -76,7 +76,8 @@ function startDemoAgent( ) {
     
     switch (msg.type) {
       case "testaction":
-        client.publish('scene', (msg.parameters=='true' ? 'fernsehzeit' : 'gutenacht'));
+        console.log("publishing to buerolicht: " + msg.parameters);
+        client.publish('buerolicht', msg.parameters);
         break;
       default:
         console.log("unknown action: " + msg.type);

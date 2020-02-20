@@ -20,7 +20,7 @@ class AjnaConnector {
 
     // handle requires for web and nodejs
     if( typeof turf == "undefined" ) {
-      this.turf = require('turf');
+      this.turf = require('@turf/turf');
       this.transformTranslate = require("@turf/transform-translate");
     } else {
       this.turf = turf;
@@ -243,6 +243,7 @@ class AjnaConnector {
     console.log("no permission to check - granting access.");
     return true;
   }
+  
   
   getOffsetFromObserved(geoPoint) {
     var lon1 = this.observed.location._long;
