@@ -2,6 +2,7 @@ const config = require( "./config.js" );
 const config_private = require( "./config_private.js" );
 const mqtt = require("mqtt");
 
+// MQTT
 var client  = mqtt.connect( config_private.mqtt_uri );
 client.on('connect', function () {
   console.log("mqtt connected");
@@ -10,13 +11,11 @@ client.on('connect', function () {
       client.publish('presence', 'Hello mqtt')
     }
   })
-})
+});
 client.on('error', function (err) {
   console.log(err);
-})
+});
 
-
-//const GeoFirestore = require( "geofirestore" ).GeoFirestore;  
 const AjnaConnector = require( "../AjnaConnector/" );
 
 const demoObjectId = '32iQbukwj4Zia8gNFeFu';
@@ -46,24 +45,6 @@ ajna.on('object_retrieved', (obj) => {
   }
 });
 
-ajna.on('object_updated', (obj) => {
-  console.log("UPDATED OBJECT: " + obj.id);
-});
-
-// ajna.observe( ajna.GeoPoint( 50.451347, 7.536345 ), 1000);
-
-
-function tickDemoAgent( ) {
-  console.log('tick...');
-  
-  // move
-  // demoObject.moveForward(1);
-  
-  // act
-  /*demoObject.set({
-    description: "random data: " + Math.random()
-  });*/
-}
 
 function startDemoAgent( ) {
   console.log('starting up the agent..');
@@ -71,11 +52,12 @@ function startDemoAgent( ) {
   
   // listen for messages sent to the agent
   demoObject.startMessageListener();
+  
   demoObject.on('message_received', ( id, msg ) => {
     console.log( msg );
     
     switch (msg.type) {
-      case "testaction":
+      case "einschalten":
         console.log("publishing to buerolicht: " + msg.parameters);
         client.publish('buerolicht', msg.parameters);
         break;
@@ -85,12 +67,5 @@ function startDemoAgent( ) {
     
     demoObject.consumeMessage( id );
   });
-  
-  // observe the world with a radius of 100m
-  // ajna.observe( data.coordinates, 100);
-  
-  // let the agent act
-  // setInterval(tickDemoAgent, 5000);
-  // tickDemoAgent();
   
 }
