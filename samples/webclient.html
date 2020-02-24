@@ -511,6 +511,31 @@
         });
       }
       
+      function createObject(longitude, latitude) {
+        if ((typeof longitude == "undefined") || (typeof latitude == "undefined")) {
+          if (me) {
+            longitude = me.getPosition().lng();
+            latitude = me.getPosition().lat();
+          } else {
+            longitude = map.getCenter().lng();
+            latitude = map.getCenter().lat();
+          }
+        }
+        if (confirm('create a new object here?')) {
+          ajna.createObject({
+            name: "unnamed object",
+            description: "edit me",
+            coordinates: ajna.GeoPoint(latitude, longitude),
+            owner: ajna.user.uid,
+            p: {a: [], r: []}
+          }, (docRef) => {
+            openObjEditor(docRef.id);
+            editModeOn();
+          }, (err) => {
+            console.log("error: ", err)
+          });
+        }
+      }
       
     </script>
     
@@ -534,6 +559,7 @@
                     <span class="show-for-sr">locate me</span>
                   </label>
                 </span>
+                <a class="button icon-plus" onclick="createObject()">create object</a>
                 <a id="loginButton" data-open="loginModal" class="button icon-lock">Login</a>
                 <a id="logoutButton" onclick="logout()" class="button icon-lock">Logout</a>
               </span></p>
@@ -708,6 +734,7 @@
 -->
     
     <script>
+	  
       function initMap() {
         map = new google.maps.Map(document.getElementById('map'), {
           center: {lat: 50.451356, lng: 7.536334},
@@ -715,22 +742,8 @@
           mapTypeId: 'terrain',
           maxZoom: 56
         });
-        google.maps.event.addListener(map, "rightclick", (event) => { 
-          if (confirm('create a new object here?')) {
-            ajna.createObject({
-              name: "unnamed object",
-              description: "edit me",
-              coordinates: ajna.GeoPoint(event.latLng.lat(), event.latLng.lng()),
-              owner: ajna.user.uid,
-              p: {a: [], r: []}
-            }, (docRef) => {
-              openObjEditor(docRef.id);
-              editModeOn();
-            }, (err) => {
-              console.log("error: ", err)
-            });
-          }
-        });
+        google.maps.event.addListener(map, "rightclick", (event) => { createObject(event.latLng.lng(), event.latLng.lat()); });
+		
         google.maps.event.addListener(map, "center_changed", () => { 
           // "follow me" is deactivated => react to map panning
           if (!geoWatcher) {
