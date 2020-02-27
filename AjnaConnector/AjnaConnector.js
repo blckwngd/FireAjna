@@ -40,6 +40,8 @@ class AjnaConnector {
     
     // handle logon callback
     this.firebase.auth().onAuthStateChanged(( user ) => {
+      console.log("AUTHCHANGED");
+      console.log(user);
       if( this.handler.auth_state_changed ) {
         this.user = user;
         this.handler.auth_state_changed( user );

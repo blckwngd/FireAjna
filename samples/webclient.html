@@ -66,6 +66,12 @@
         callbacks: {
           uiShown: function() {
             document.getElementById('loader').style.display = 'none';
+          },
+          signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+            $('#loginButton').hide();
+            $('#logoutButton').show();
+            $('#loginModal').hide();
+            return false;
           }
         },
         signInFlow: 'popup'
@@ -570,10 +576,10 @@
       
 
       <!-- LOGIN WINDOW -->
-      <div class="tiny reveal" id="loginModal" data-animation-in="spin-in" data-animation-out="spin-out" data-reveal>
+      <div class="tiny reveal" id="loginModal" data-animation-in="spin-in" data-animation-out="spin-out" data-overlay="false" data-reveal>
         <div id="firebaseui-auth-container"></div>
         <div id="loader">Loading...</div>
-        <button class="close-button" data-close aria-label="Close reveal" type="button">
+        <button class="close-button" onclick="$('#loginModal').hide()" aria-label="Close modal" type="button">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -610,7 +616,7 @@
     </div>
 
     <!-- OBJECT EDITOR -->
-    <div class="reveal" id="objectModal" data-reveal>
+    <div class="reveal" id="objectModal" data-reveal data-overlay="false">
       <span class="switch medium float-right" style="margin-right:30px;">
         <input class="switch-input" id="editModeSwitch" type="checkbox" name="editModeSwitch" onchange="toggleEditMode()">
         <label class="switch-paddle" for="editModeSwitch">
@@ -717,7 +723,7 @@
       </form>
       
       <!-- SAVE / CANCEL buttons -->
-      <button class="close-button" data-close aria-label="close" type="button">
+      <button class="close-button" onclick="$('#objectModal').hide()" aria-label="Close modal" type="button">
         <span aria-hidden="true">&times;</span>
       </button>
       <div class="float-right">

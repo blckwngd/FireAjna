@@ -29,6 +29,11 @@
     <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-firestore.js"></script>
     <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>
     
+    <!-- FOUNDATION -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.6.1/dist/css/foundation.min.css">
+    <link href="https://mozilla.github.io/foundation-icons/assets/foundation-icons.css" type="text/css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/foundation-sites@6.6.1/dist/js/foundation.min.js"></script>
+    
     <script>
     
       var selected = false;
@@ -46,13 +51,9 @@
       // Initialize Firebase
       const ajna = new AjnaConnector( firebaseConfig );
       
-      // start signIn process
-      // Initialize the FirebaseUI Widget using Firebase.
-      var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
-      
       ajna.on('auth_state_changed', function(user) {
-	    console.log("USER");
-	    console.log(user);
+        console.log("USER");
+        console.log(user);
         if (user) {
           // User is signed in.
           console.log(user.email + " logged in");
@@ -63,13 +64,13 @@
           var isAnonymous = user.isAnonymous;
           var uid = user.uid;
           var providerData = user.providerData;
-          $('#loginBtn').hide();
-          $('#logoutBtn').show();
+          $('#loginButton').hide();
+          $('#logoutButton').show();
           // ...
         } else {
           console.log("user is signed out");
-          $('#loginBtn').show();
-          $('#logoutBtn').hide();
+          $('#loginButton').show();
+          $('#logoutButton').hide();
         }
       });
       
@@ -78,28 +79,25 @@
         ajna.logout();
       }
       
-      function showLoginWindow() {
-        document.getElementById('firebaseui-auth-container').style.display = 'block';        
-        ui.start('#firebaseui-auth-container', {
-          signInOptions: [
-            ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
-          ],
-          callbacks: {
-            signInSuccessWithAuthResult: function(authResult, redirectUrl) {
-              console.log("AUTH");
-              console.log(authResult);
-              // User successfully signed in.
-              // Return type determines whether we continue the redirect automatically
-              // or whether we leave that to developer to handle.
-              return true;
-            },
-            uiShown: function() {
-              document.getElementById('firebaseui-auth-container').style.display = 'none';
-            }
+      var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
+      ui.start('#firebaseui-auth-container', {
+        signInOptions: [
+          ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
+        ],
+        callbacks: {
+          uiShown: function() {
+            document.getElementById('loader').style.display = 'none';
           },
-          signInFlow: 'popup'
-        });
-      }
+          signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+            console.log("signInSuccessWithAuthResult");
+            $('#loginButton').hide();
+            $('#logoutButton').show();
+            $('#loginModal').hide();
+            return false;
+          }
+        },
+        signInFlow: 'popup'
+      });
       
       ajna.on('object_retrieved', (obj) => {
         updateSceneForObject(obj);
@@ -116,7 +114,12 @@
       
       window.onload = function() {        
         // init
-        $('#popup').hide();
+        $('#objectModal').hide();
+        // start signIn process
+        // Initialize the FirebaseUI Widget using Firebase.
+        //ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
+        loginModal = new Foundation.Reveal($('#loginModal'));
+        $('#logoutButton').hide();
       }
       
       function camMoved() {
@@ -125,7 +128,7 @@
         var coords = cam.components["gps-camera"].currentCoords;
         console.log("CAM MOVED TO: ", coords);
         // set the new position as center for watching for ajna objects
-        ajna.observe(ajna.GeoPoint(coords.latitude, coords.longitude), 1000);
+        ajna.observe(ajna.GeoPoint(parseFloat(coords.latitude), parseFloat(coords.longitude)), 1000);
       }
       window.addEventListener('gps-camera-origin-coord-set', camMoved);
       window.addEventListener('gps-camera-update-position', camMoved);
@@ -176,7 +179,7 @@
             box.addEventListener('click', function (evt) {
               var clicked_id = evt.target.parentNode.components["ajna-object"].data;
               populatePopup(clicked_id);
-              $('#popup').show();
+              $('#objectModal').show();
             });
             this.el.append(box);
           }
@@ -239,43 +242,81 @@
               break;
           }
           html += "</td>";
-          html += "<td><input type=\"button\" value=\"send\" onClick=\"executeAction('" + id + "', '" + aname + "');\"/></td>";
+          html += "<td><a class=\"button\" onClick=\"executeAction('" + id + "', '" + aname + "');\">send</a></td>";
           row.html(html);
           row.appendTo("#popAct");
         }
       }
       
+      // AFRAME-AR MARKERS
+      
+      window.addEventListener('camera-init', (data) => {
+          console.log('camera-init', data);
+      })
+
+      window.addEventListener('camera-error', (error) => {
+          console.log('camera-error', error);
+      })
+
+      AFRAME.registerComponent('registerevents', {
+        init: function () {
+          var marker = this.el;
+
+          marker.addEventListener('markerFound', function() {
+            var markerId = marker.id;
+            console.log('markerFound', markerId);
+            // TODO: Add your own code here to react to the marker being found.
+          });
+
+          marker.addEventListener('markerLost', function() {
+            var markerId = marker.id;
+            console.log('markerLost', markerId);
+            // TODO: Add your own code here to react to the marker being lost.
+          });
+        }
+      });
     </script>
   </head>
   <body>
   
 	<!-- LOGIN BUTTONS -->
     <div style="position:absolute; top: 10px; right: 10px; z-index: 10000;">
-      <input type="button" value="login" onclick='showLoginWindow()' id='loginBtn'/>
-      <input type="button" value="logout" onclick='logout()' id='logoutBtn'/>
+      <a id="loginButton" data-open="loginModal" class="button icon-lock">Login</a>
+      <a id="logoutButton" onclick="logout()" class="button icon-lock">Logout</a>
     </div>
     
 	<!-- OBJECT POPUP -->
-    <div id="popup" style="position:absolute; top: 20px; left:20px; z-index:10001; background: #ffffff; opacity: 0.5;">
+    <div id="objectModal" class="reveal" style="position:absolute; top: 20px; left:20px; z-index:10001; background: #ffffff; opacity: 0.5;" data-reveal data-overlay="false">
       <h2 id="popName">Objectname</h2>
       <p id="popDesc">Description</p>
       <table id="popAct">
       </table>
       <input type="hidden" id="popId" value="dummy"/>
-      <input type="text" id="popInp" placeholder="message"/> <button>send</button><br/>
-      <button onclick="$('#popup').toggle()">Close</button>
+      <input type="text" id="popInp" placeholder="message"/> <a class="button">send</a>
+      <button class="close-button" onclick="$('#objectModal').hide()" aria-label="Close modal" type="button">
+        <span aria-hidden="true">&times;</span>
+      </button>
     </div>
     
-	<!-- FIREBASE AUTH POPUP -->
-    <div style="z-index: 11111;" id="firebaseui-auth-container"></div>
+    <!-- LOGIN WINDOW -->
+    <div class="reveal" id="loginModal" data-animation-in="spin-in" data-animation-out="spin-out" data-reveal data-overlay="false" style="z-index:10002">
+      <div id="firebaseui-auth-container"></div>
+      <div id="loader">Loading...</div>
+      <button class="close-button" onclick="$('#loginModal').hide()" aria-label="Close modal" type="button">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
 	
     <!-- AFRAME SCENE -->
-    <a-scene device-orientation-permission-ui="enabled: true">
+    <a-scene device-orientation-permission-ui="enabled: true" artoolkit embedded arjs='sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; sourceWidth:1280; sourceHeight:960; displayWidth: 1280; displayHeight: 960;'>
       <!-- define your scene as usual -->
-      <a-box color="blue" ajna-object position="-5 0 -5">
-        <a-text billboard value="Hello, World!" color="#ff0000" position="0 1 0" align="center"></a-text>
-        <!-- <a-text value="Hello, World!" color="#ff0000" position="0 1 0" align="center" rotation="0 180 0"></a-text> -->
-      </a-box>
+      
+      <a-marker type="barcode" value="42" emitevents="true" registerevents>
+        <a-box color="blue" size="0.1 0.1 0.1" position="0 0.5 0">
+          <a-text billboard value="Hello, World!" color="#ff0000" position="0 0.1 0" align="center"></a-text>
+          <!-- <a-text value="Hello, World!" color="#ff0000" position="0 1 0" align="center" rotation="0 180 0"></a-text> -->
+        </a-box>
+      </a-marker>
 
       <!-- define a camera inside the <a-marker-camera> -->
       <a-camera gps-camera rotation-reader>
