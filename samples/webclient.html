@@ -144,7 +144,7 @@
             parameters = $("#a_" + aname + "_val").find(":selected").val();
             break;
           default:
-            parameters = $("#a_" + aname + "_val").text();
+            parameters = $("#a_" + aname + "_val").val();
             break;
         }
         ajna.getObject(id).executeAction(aname, parameters);
@@ -156,11 +156,8 @@
       }
       
       function editModeOn() {
-        console.log("editing object " + $('#objectModalObjectId').val());
         var o = ajna.getObject($('#objectModalObjectId').val());
-        console.log(o);
         var d = o.doc.data();
-        console.log(d);
         if (ajna.checkPermission(d.p, 'w', d.owner)) {
           $('#objectModal').find('.editOff').hide();
           $('#objectModal').find('.editOn').show();
@@ -200,44 +197,8 @@
         // action editor
         $("#tbl_actions_editOn tr").remove();
         $("#tbl_actions_editOff tr").remove();
-        for (var aname in d.actions) {   
-          console.log("building action " + aname);        
-          console.log(d.actions[aname]);
-          // editOn
-          var row = $("<tr/>");
-          row.attr("id", "a_" + aname + "_editOn");
-          row.attr("class", "action");
-          row.attr("name", aname);
-          var html = "<td><input type=\"text\" id=\"a_name_" + aname + "\" value=\"" + aname + "\" title=\"name\" /></td>";
-          html += "<td><select id=\"a_type_" + aname + "\" value=\"" + d.actions[aname].type + "\" title=\"type\">" +
-            "<option " + (d.actions[aname].type=='string' ? ' selected' : '') + ">string</option>" + 
-            "<option " + (d.actions[aname].type=='int' ? ' selected' : '') + ">int</option>" + 
-            "<option " + (d.actions[aname].type=='float' ? ' selected' : '') + ">float</option>" + 
-            "<option " + (d.actions[aname].type=='bool' ? ' selected' : '') + ">bool</option>" + 
-            "</select></td>";
-          html += "<td><a class=\"button small\" disabled>send</a></td>";
-          row.html(html);
-          row.appendTo("#tbl_actions_editOn");
-          // editOff
-          row = row.clone();
-          row.attr("id", "a_" + aname + "_editOn");
-          var html = "<td>" + aname + "</td><td>";
-          switch (d.actions[aname].type) {
-            case  'bool':
-              html += "<select id=\"a_" + aname + "_val\"><option value=\"true\">true</option><option value=\"false\">false</option></select>";
-              break;
-            case 'int':
-            case 'float':
-              html += "<input type=\"number\" id=\"a_" + aname + "_val\"/>";
-              break;
-            default:
-              html += "<input type=\"text\" id=\"a_" + aname + "_val\"/>";
-              break;
-          }
-          html += "</td>";
-          html += "<td><a class=\"button small\" onClick=\"executeAction('" + id + "', '" + aname + "');\">send</a></td>";
-          row.html(html);
-          row.appendTo("#tbl_actions_editOff");
+        for (var aname in d.actions) {
+          addActionRow(aname, d.actions[aname].type);
         }
         
         // permission editor
@@ -314,6 +275,48 @@
           console.log("we are not the owner");
           $('#tbl_permissions_container').hide();
         }
+      }
+      
+      function addActionRow(aname, type) {
+          aname = (typeof aname == "undefined") ? "new_action" : aname;
+          type = (typeof type == "undefined") ? "string" : type;
+          var id = $('#objectModalObjectId').val();
+
+          // editOn
+          var row = $("<tr/>");
+          row.attr("id", "a_" + aname + "_editOn");
+          row.attr("class", "action");
+          row.attr("name", aname);
+          var html = "<td><input type=\"text\" name=\"aname\" id=\"a_name_" + aname + "\" value=\"" + aname + "\" title=\"name\" /></td>";
+          html += "<td><select name=\"atype\" id=\"a_type_" + aname + "\" value=\"" + type + "\" title=\"type\">" +
+            "<option " + (type=='string' ? ' selected' : '') + ">string</option>" + 
+            "<option " + (type=='int' ? ' selected' : '') + ">int</option>" + 
+            "<option " + (type=='float' ? ' selected' : '') + ">float</option>" + 
+            "<option " + (type=='bool' ? ' selected' : '') + ">bool</option>" + 
+            "</select></td>";
+          html += "<td><a class=\"button small\" disabled>send</a></td>";
+          row.html(html);
+          row.appendTo("#tbl_actions_editOn");
+          // editOff
+          row = row.clone();
+          row.attr("id", "a_" + aname + "_editOn");
+          var html = "<td>" + aname + "</td><td>";
+          switch (type) {
+            case  'bool':
+              html += "<select id=\"a_" + aname + "_val\"><option value=\"true\">true</option><option value=\"false\">false</option></select>";
+              break;
+            case 'int':
+            case 'float':
+              html += "<input type=\"number\" id=\"a_" + aname + "_val\"/>";
+              break;
+            default:
+              html += "<input type=\"text\" id=\"a_" + aname + "_val\"/>";
+              break;
+          }
+          html += "</td>";
+          html += "<td><a class=\"button small\" onClick=\"executeAction('" + id + "', '" + aname + "');\">send</a></td>";
+          row.html(html);
+          row.appendTo("#tbl_actions_editOff");
       }
       
       function objView(id) {
@@ -408,6 +411,7 @@
         $('#tr_' + obj.id).remove();
       }
       
+      
       var geoWatcher = false;
       function toggleGPS() {
         if ($('#geoLocSwitch').is(':checked')) {          
@@ -491,9 +495,9 @@
         
         // action definitions
         var actions = {};
-        $(".action").each(function () {
-          var name = $(this).attr("name");
-          var type = $("#a_type_" + name).find(":selected").val();
+        $("#tbl_actions_editOn .action").each(function () {
+          var name = $(this).find("input[name=aname]").val();
+          var type = $(this).find("select[name=atype]").val();
           actions[name] = {
             type:  type
           };
@@ -504,7 +508,6 @@
         if (ajna.checkPermission(d_old.p, 'owner', d_old.owner)) {
           d.p = buildPermissionObject();
         }
-        console.log("saving: ", d)
         
         ajna.setObject(id, d, (r) => {
           // onSuccess
@@ -616,7 +619,7 @@
     </div>
 
     <!-- OBJECT EDITOR -->
-    <div class="reveal" id="objectModal" data-reveal data-overlay="false">
+    <div class="reveal" id="objectModal" data-reveal data-overlay="false" style="max-height:80%">
       <span class="switch medium float-right" style="margin-right:30px;">
         <input class="switch-input" id="editModeSwitch" type="checkbox" name="editModeSwitch" onchange="toggleEditMode()">
         <label class="switch-paddle" for="editModeSwitch">
@@ -708,6 +711,7 @@
           <tbody id="tbl_actions_editOn">
           </tbody>
         </table>
+        <a class="button small editOn" onclick="addActionRow()">add action</a>
         <table class="hover unstriped editOff">
           <thead>
             <tr>
