@@ -26,6 +26,7 @@ class AjnaConnector {
       this.turf = turf;
       this.transformTranslate = turf.transformTranslate;
     }
+    this.fetch = (window && typeof window.fetch == "undefined") ? window.fetch : require( "node-fetch" );
     var GFS = (typeof GeoFirestore == "undefined") ? require( "geofirestore" ).GeoFirestore : GeoFirestore;
     if( typeof firebase == "undefined" ) {
       this.firebase = require( "firebase/app" );
@@ -83,6 +84,8 @@ class AjnaConnector {
       throw "unknown event: " + event;
     this.handler[event] = false;
   }
+  
+  _request( host, path )
   
   // handle an object received from geofirestore
   _handleObject( doc, tag ) {
@@ -256,6 +259,12 @@ class AjnaConnector {
     var dy = this.turf.distance(turf.point([lon2, lat2]), turf.point([lon2, lat1]));
     return [dx * 1000, dy * 1000]; // return in meters
   }
+  
+  calcHeightAboveSealevel(height_above_ground, callback) {
+    this.fetch('https://maps.googleapis.com/maps/api/elevation/json?locations=39.7391536,-104.9847034&key=AIzaSyBsAeHVNsBh8lKiVQlCiHVjfl7r2n9yFDc') // todo: make key customizable
+    .then(res => res.json())
+    .then(json => callback(json));
+  }
 
 }
 
@@ -274,6 +283,7 @@ class AjnaObject {
     this.id = doc.id || false;
     this.doc = doc || false;
     this.geocollection = ajna.geocollection;
+    this.height_above_sealevel = undefined;
     
     //this.startObjectListener( );
   }
@@ -379,6 +389,21 @@ class AjnaObject {
   
   stopMessageListener( ) {
     // TODO
+  }
+  
+  _calcHeightAboveSeaLevel( ) {
+    this.ajna.calcHeightAboveSealevel( this.doc.height, (data) => {
+      console.log("got height info: ");
+      console.log(data);
+    }
+  }
+  
+  getHeightAboveSealevel( ) {
+    return this.height_above_sealevel;
+  }
+  
+  getHeightAboveGround( ) {
+    return this.doc.height;
   }
   
 }
