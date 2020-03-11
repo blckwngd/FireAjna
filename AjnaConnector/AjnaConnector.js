@@ -26,7 +26,7 @@ class AjnaConnector {
       this.turf = turf;
       this.transformTranslate = turf.transformTranslate;
     }
-    this.fetch = (window && typeof window.fetch == "undefined") ? window.fetch : require( "node-fetch" );
+    this.fetch = (window && typeof window.fetch != "undefined") ? window.fetch : require( "node-fetch" );
     var GFS = (typeof GeoFirestore == "undefined") ? require( "geofirestore" ).GeoFirestore : GeoFirestore;
     if( typeof firebase == "undefined" ) {
       this.firebase = require( "firebase/app" );
@@ -85,8 +85,6 @@ class AjnaConnector {
     this.handler[event] = false;
   }
   
-  _request( host, path )
-  
   // handle an object received from geofirestore
   _handleObject( doc, tag ) {
     if (!this.objects[doc.id]) {
@@ -102,6 +100,9 @@ class AjnaConnector {
       }
     }
     if (tag && Array.isArray(this.objects[doc.id].tags)) this.objects[doc.id].tags.push( tag );
+    
+    console.log( doc.data().name + " updated!" );
+    this.objects[doc.id]._calcHeightAboveSeaLevel();
   }
   
   GeoPoint( latitude, longitude ) {
@@ -260,10 +261,14 @@ class AjnaConnector {
     return [dx * 1000, dy * 1000]; // return in meters
   }
   
-  calcHeightAboveSealevel(height_above_ground, callback) {
-    this.fetch('https://maps.googleapis.com/maps/api/elevation/json?locations=39.7391536,-104.9847034&key=AIzaSyBsAeHVNsBh8lKiVQlCiHVjfl7r2n9yFDc') // todo: make key customizable
-    .then(res => res.json())
-    .then(json => callback(json));
+  calcGroundHeight(geoPoint, callback) {
+    var key = 'AIzaSyAnRCIFgGZwGGOmjZ7R5juJ4LD34rv86iE';
+    var url = 'https://maps.googleapis.com/maps/api/elevation/json?locations=' + geoPoint._lat + ',' + geoPoint._long + '&key=' + key;
+    console.log(url);
+    this.fetch(url, { mode: 'no-cors' }) // todo: make key customizable
+    .then((data) => {
+      console.log(data); // JSON data parsed by `response.json()` call
+    });
   }
 
 }
@@ -392,10 +397,13 @@ class AjnaObject {
   }
   
   _calcHeightAboveSeaLevel( ) {
-    this.ajna.calcHeightAboveSealevel( this.doc.height, (data) => {
-      console.log("got height info: ");
-      console.log(data);
-    }
+    var that = this;
+    this.ajna.calcGroundHeight( this.doc.data().coordinates, (h) => {
+      console.log("got ground height info for " + this.doc.name + ": ");
+      console.log(h);
+      that.height_above_sealevel = (this.doc.height + h);
+      console.log("so my height above NN is " + this.height_above_sealevel);
+    } );
   }
   
   getHeightAboveSealevel( ) {
