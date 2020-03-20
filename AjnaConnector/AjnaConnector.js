@@ -26,7 +26,7 @@ class AjnaConnector {
       this.turf = turf;
       this.transformTranslate = turf.transformTranslate;
     }
-    this.fetch = (window && typeof window.fetch != "undefined") ? window.fetch : require( "node-fetch" );
+    this.axios = (typeof axios != "undefined") ? axios : require( "axios" );
     var GFS = (typeof GeoFirestore == "undefined") ? require( "geofirestore" ).GeoFirestore : GeoFirestore;
     if( typeof firebase == "undefined" ) {
       this.firebase = require( "firebase/app" );
@@ -263,12 +263,21 @@ class AjnaConnector {
   
   calcGroundHeight(geoPoint, callback) {
     var key = 'AIzaSyAnRCIFgGZwGGOmjZ7R5juJ4LD34rv86iE';
-    var url = 'https://maps.googleapis.com/maps/api/elevation/json?locations=' + geoPoint._lat + ',' + geoPoint._long + '&key=' + key;
+    var url = 'https://api.open-elevation.com/api/v1/lookup?locations=' + geoPoint._lat + ',' + geoPoint._long; // + '&key=' + key;
     console.log(url);
-    this.fetch(url, { mode: 'no-cors' }) // todo: make key customizable
-    .then((data) => {
-      console.log(data); // JSON data parsed by `response.json()` call
-    });
+    axios.get(url)
+      .then(function (response) {
+        // handle success
+        console.log(response);
+      })
+      .catch(function (error) {
+        // handle error
+        console.log(error);
+      })
+      .then(function () {
+        // always executed
+        console.log("axios done");
+      });
   }
 
 }
