@@ -102,7 +102,6 @@ class AjnaConnector {
     if (tag && Array.isArray(this.objects[doc.id].tags)) this.objects[doc.id].tags.push( tag );
     
     console.log( doc.data().name + " updated!" );
-    this.objects[doc.id]._calcHeightAboveSeaLevel();
   }
   
   GeoPoint( latitude, longitude ) {
@@ -211,11 +210,8 @@ class AjnaConnector {
   // save an object to the database.
   setObject (id, data, onSuccess, onError) {
     var ajna = this;
-    console.log("check 2");
     this.geocollection.doc( id ).update( data ).then((docRef) => {
-      console.log("check 3");
       this.geocollection.doc( id ).get( ).then((docRef) => {
-        console.log("check 4");
         // update local copy of the object
         ajna.objects[id].updateData( docRef );
       }, (error) => {
@@ -259,25 +255,6 @@ class AjnaConnector {
     var dx = this.turf.distance(turf.point([lon2, lat2]), turf.point([lon1, lat2]));
     var dy = this.turf.distance(turf.point([lon2, lat2]), turf.point([lon2, lat1]));
     return [dx * 1000, dy * 1000]; // return in meters
-  }
-  
-  calcGroundHeight(geoPoint, callback) {
-    var key = 'AIzaSyAnRCIFgGZwGGOmjZ7R5juJ4LD34rv86iE';
-    var url = 'https://api.open-elevation.com/api/v1/lookup?locations=' + geoPoint._lat + ',' + geoPoint._long; // + '&key=' + key;
-    console.log(url);
-    axios.get(url)
-      .then(function (response) {
-        // handle success
-        console.log(response);
-      })
-      .catch(function (error) {
-        // handle error
-        console.log(error);
-      })
-      .then(function () {
-        // always executed
-        console.log("axios done");
-      });
   }
 
 }
@@ -404,16 +381,7 @@ class AjnaObject {
   stopMessageListener( ) {
     // TODO
   }
-  
-  _calcHeightAboveSeaLevel( ) {
-    var that = this;
-    this.ajna.calcGroundHeight( this.doc.data().coordinates, (h) => {
-      console.log("got ground height info for " + this.doc.name + ": ");
-      console.log(h);
-      that.height_above_sealevel = (this.doc.height + h);
-      console.log("so my height above NN is " + this.height_above_sealevel);
-    } );
-  }
+
   
   getHeightAboveSealevel( ) {
     return this.height_above_sealevel;
