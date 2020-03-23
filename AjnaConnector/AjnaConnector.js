@@ -17,6 +17,9 @@ class AjnaConnector {
       location: null,
       radius: null
     };
+    
+    // Mapbox access token
+    this.mapboxToken = "MAPBOX_TOKEN";
 
     // handle requires for web and nodejs
     if( typeof turf == "undefined" ) {
@@ -27,7 +30,14 @@ class AjnaConnector {
       this.transformTranslate = turf.transformTranslate;
     }
     this.axios = (typeof axios != "undefined") ? axios : require( "axios" );
+    
+    this.SphericalMercator = (typeof SphericalMercator != "undefined") ? SphericalMercator : require( "@mapbox/sphericalmercator" );
+    this.merc = new SphericalMercator({
+      size: 256
+    });
+    
     var GFS = (typeof GeoFirestore == "undefined") ? require( "geofirestore" ).GeoFirestore : GeoFirestore;
+    
     if( typeof firebase == "undefined" ) {
       this.firebase = require( "firebase/app" );
       require( "firebase/auth" );
@@ -166,6 +176,12 @@ class AjnaConnector {
     }
     // RULE: hasPublicPerm(resource.data.d, 'read');
 //    this.geoquery.where('permissions', '!=', null).where(onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
+
+    // check if a new heightmap tile needs to be loaded
+    var loadRequired = true;
+    if (loadRequired) {
+      this.getHeightmap( location );
+    }
   }
   
   getObjects( ) {
@@ -255,6 +271,22 @@ class AjnaConnector {
     var dx = this.turf.distance(turf.point([lon2, lat2]), turf.point([lon1, lat2]));
     var dy = this.turf.distance(turf.point([lon2, lat2]), turf.point([lon2, lat1]));
     return [dx * 1000, dy * 1000]; // return in meters
+  }
+  
+  /** getHeightmap
+   *
+   * requests elevation data from mapbox and returns it as heightmap, which can be used by the client
+   */
+  getHeightmap( location ) {
+    console.log("calculating mercator for ", location._long, location._lat);
+    //var xy = this.merc.forward([location._long, location._lat]);
+    var xy = this.merc.forward([12.1654503, 52.7589065]);
+    console.log("mercator calc done for current location: ", xy);
+    var inv = this.merc.inverse(xy);
+    console.log("mercator inverse: ", inv);
+    var url = "https://api.mapbox.com/v4/mapbox.terrain-rgb/15/" + xy[0] + "/" + xy[1] + ".pngraw?access_token=" + this.mapboxToken;
+    console.log(url);
+    // height = -10000 + ((R * 256 * 256 + G * 256 + B) * 0.1)
   }
 
 }

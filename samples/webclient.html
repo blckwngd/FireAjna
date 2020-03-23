@@ -23,6 +23,9 @@
     <!-- AXIOS -->
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     
+    <!-- SPHERICALMERCATOR -->
+    <script src="https://unpkg.com/@mapbox/sphericalmercator@1.1.0/sphericalmercator.js"></script>
+    
     <!-- TURF -->
     <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
 
@@ -50,8 +53,9 @@
         appId: "1:1041333232578:web:d6e4f6941228c2ea"
       };
 
-      // Initialize Firebase
+      // Initialize Ajna
       const ajna = new AjnaConnector( firebaseConfig );
+      ajna.mapboxToken = "pk.eyJ1IjoiYmxja3duZ2QiLCJhIjoiY2s4NHd3cWxrMDB0ajNobzBnamVtYXR2dCJ9.MsTbbcwn2iziAQMmy95oTA"; // Demo mapbox token
       
       // Map
       var map;
@@ -452,7 +456,7 @@
         if(adjustMap !== false)
           map.panTo(l);
         // set the new position as center for watching for ajna objects
-        ajna.observe(p, 100000);
+        ajna.observe(p, 1000);
       }
       
       function buildPermissionObject () {
@@ -488,6 +492,7 @@
       function saveObject() {
         var id = $("#objectModalObjectId").val();
         var o = ajna.getObject(id);
+        console.log(o);
         var d_old = o.doc.data();
         
         var d = {
