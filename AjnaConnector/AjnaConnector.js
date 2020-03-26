@@ -151,13 +151,13 @@ class AjnaConnector {
   
   observe( location, radius ) {
     this.observed.location = location;
-    this.observed.radius = radius; // GeoFireStore works with km
+    this.observed.radius = radius;
     
     if(!location)
       return false;
     
     this.geoquery = this.geocollection
-      .near({ center: location, radius: radius/1000 });
+      .near({ center: location, radius: radius/1000 });  // GeoFireStore works with km
     
     // untag all objects
     for (var i in this.objects) { this.objects[i].tags = [] };
@@ -278,15 +278,29 @@ class AjnaConnector {
    * requests elevation data from mapbox and returns it as heightmap, which can be used by the client
    */
   getHeightmap( location ) {
-    console.log("calculating mercator for ", location._long, location._lat);
-    //var xy = this.merc.forward([location._long, location._lat]);
-    var xy = this.merc.forward([12.1654503, 52.7589065]);
-    console.log("mercator calc done for current location: ", xy);
-    var inv = this.merc.inverse(xy);
-    console.log("mercator inverse: ", inv);
-    var url = "https://api.mapbox.com/v4/mapbox.terrain-rgb/15/" + xy[0] + "/" + xy[1] + ".pngraw?access_token=" + this.mapboxToken;
+    console.log("retrieving heightmap for ", location._long, location._lat);
+    // calc bounding box around current position
+    var center = turf.point([location._long, location._lat]);
+    var distance = this.observed.radius * 2; // heightmap is bigger than observation radius, since we want to move without reloading
+    var nw = turf.transformTranslate(center, distance/1000, 315);
+    var se = turf.transformTranslate(center, distance/1000, 135);
+    var nw_lon = nw.geometry.coordinates[0];
+    var nw_lat = nw.geometry.coordinates[1];
+    var se_lon = se.geometry.coordinates[0];
+    var se_lat = se.geometry.coordinates[1];
+    console.log("BB from " + nw_lat + "/" + nw_lon + " to " + se_lat + "/" + se_lon);
+    var url = `https://api.elevationapi.com/api/Model/3d/bbox/${nw_lon},${se_lon},${nw_lat},${se_lat}`;
     console.log(url);
-    // height = -10000 + ((R * 256 * 256 + G * 256 + B) * 0.1)
+    this.axios.get(url, {
+      headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'text/plain'
+       }})
+      .then(res => {
+        console.log(res);
+        var r = res.json();
+        console.log(r);
+      });
   } 
 
 }

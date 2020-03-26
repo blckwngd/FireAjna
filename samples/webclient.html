@@ -138,7 +138,7 @@
         loginModal = new Foundation.Reveal($('#loginModal'));
         $('#logoutButton').hide();
         editModeOff();
-        ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 100);
+        ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 1000);
       }
       
       window.setInterval(ajna.cleanup.bind(ajna), 3000);
