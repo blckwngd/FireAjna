@@ -13,8 +13,10 @@
           alert("ERROR");
         })
         .then(res => {
-          console.log(res);
-          alert("SUCCESS");
+          if (typeof res !== "undefined") {
+            console.log(res);
+            alert("SUCCESS");
+          }
         });
       }
     </script>
