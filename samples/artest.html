@@ -1,34 +1,28 @@
 <html lang="en">
   <head>
-    <title>AR Test</title>
+    <title>ElevationAPI Test</title>
     <meta charset="utf-8">
-    <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1c2407b26c61958baa93967b5412487cd94b290b/dist/aframe-master.min.js"></script>
-    <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
-
-    <script src="https://rawcdn.githack.com/AR-js-org/AR.js/a5619a021e6ff40427ff8f9c62169e99a390f56b/aframe/build/aframe-ar-nft.min.js"></script>
-    <!-- <script src="https://raw.githack.com/jeromeetienne/AR.js/3.0.0/aframe/build/aframe-ar-nft.min.js"></script> -->
-
-    <!-- <script>ARjs.Context.baseURL = '../../../../../three.js/'</script> -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    
+    <script type="text/javascript">
+      function test() {
+        var url = "https://api.elevationapi.com/api/Model/3d/bbox/7.0,7.05,49.0,49.2";
+        axios.get(url)
+        .catch(err => {
+          console.log(err);
+          alert("ERROR");
+        })
+        .then(res => {
+          console.log(res);
+          alert("SUCCESS");
+        });
+      }
+    </script>
   </head>
-  <body style="margin : 0px; overflow: hidden;">
-    <a-scene
-      vr-mode-ui="enabled: false;"
-      renderer="antialias: true; alpha: true; precision: mediump;"
-      embedded
-      arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
-    >
-      <a-nft
-        type="nft"
-        url="https://rawcdn.githack.com/AR-js-org/AR.js/tree/master/data/dataNFT/pinball"
-        smooth="true"
-        smoothCount="10"
-        smoothTolerance="0.01"
-        smoothThreshold="5"
-      >
-        <a-entity gltf-model="model/Fox/fox.gltf" position="50 150 0" animation-mixer>
-        </a-entity>
-      </a-nft>
-      <a-entity camera></a-entity>
-    </a-scene>
+  <body>
+    Demo CORS Request for ElevationAPI.<br/>
+    See page source and JS console for details.<br/>
+    The requested resource is <a href="https://api.elevationapi.com/api/Model/3d/bbox/7.0,7.05,49.0,49.2" target="_blank">https://api.elevationapi.com/api/Model/3d/bbox/7.0,7.05,49.0,49.2</a><br/>
+    <input type="button" value="test ElevationAPI" onclick="test()"/>
   </body>
 </html>
