@@ -287,7 +287,7 @@ class AjnaConnector {
     var url = "https://api.mapbox.com/v4/mapbox.terrain-rgb/15/" + xy[0] + "/" + xy[1] + ".pngraw?access_token=" + this.mapboxToken;
     console.log(url);
     // height = -10000 + ((R * 256 * 256 + G * 256 + B) * 0.1)
-  }
+  } 
 
 }
 
