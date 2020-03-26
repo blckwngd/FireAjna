@@ -4,8 +4,10 @@
   "description": "provides connection handling for the Ajna ecosystem",
   "main": "AjnaConnector.js",
   "dependencies": {
-    "firebase": "^6.2.4",
-    "geofirestore": "^3.3.1"
+    "@turf/transform-translate": "^5.1.5",
+    "@turf/turf": "^5.1.6",
+    "firebase": "^6.6.2",
+    "geofirestore": "^3.4.1"
   },
   "devDependencies": {},
   "scripts": {

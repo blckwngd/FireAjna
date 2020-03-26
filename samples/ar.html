@@ -183,15 +183,12 @@
               // GLTF 3D model
               model.setAttribute('gltf-model', 'url(' + data.model.url + ')');
               model.setAttribute('animation-mixer', '');
-              if ((typeof data.model.scale == "object") && (data.model.scale.length == 3))
-                model.setAttribute('scale', data.model.scale[0] + " " + data.model.scale[1] + " " + data.model.scale[2]);
             } else {
               // placeholder box
               model.setAttribute('geometry', 'primitive: box');
               model.setAttribute('material', 'color: green; transparent: true; opacity: 0.6');
             }
             model.addEventListener('click', function (evt) {
-              console.log("clicked model");
               var clicked_id = evt.target.parentNode.components["ajna-object"].data;
               populatePopup(clicked_id);
               $('#objectModal').show();
@@ -201,7 +198,9 @@
           if (has3DModel && (typeof data.model.animation != "undefined")) {
               model.setAttribute('animation-mixer', 'clip: ' + data.model.animation);
           }
-          
+          if (has3DModel && (typeof data.model.scale == "object") && (data.model.scale.length == 3)) {
+            model.setAttribute('scale', data.model.scale[0] + " " + data.model.scale[1] + " " + data.model.scale[2]);
+          }
           
           // <a-text> // floating name
           var txtName = this.el.querySelector('a-text');
