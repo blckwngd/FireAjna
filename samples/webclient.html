@@ -23,9 +23,6 @@
     <!-- AXIOS -->
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     
-    <!-- SPHERICALMERCATOR -->
-    <script src="https://unpkg.com/@mapbox/sphericalmercator@1.1.0/sphericalmercator.js"></script>
-    
     <!-- TURF -->
     <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
 
@@ -43,6 +40,8 @@
     <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>
     
     <script>
+      const DEBUG = true;
+      
       var firebaseConfig = {
         apiKey: "AIzaSyAnRCIFgGZwGGOmjZ7R5juJ4LD34rv86iE",
         authDomain: "fireajna.firebaseapp.com",
@@ -52,6 +51,7 @@
         messagingSenderId: "1041333232578",
         appId: "1:1041333232578:web:d6e4f6941228c2ea"
       };
+      
 
       // Initialize Ajna
       const ajna = new AjnaConnector( firebaseConfig );
@@ -104,13 +104,18 @@
         }
       });
       
+      ajna.on('heightmap_updated', function(heightMap) {
+        console.log("Webclient received a new heightmap");
+      });
+      
       function logout() {
         console.log("logging out...");
         ajna.logout();
       }
       
       function loginDone() {
-        loginModal.close();
+        if (typeof loginModal != "undefined")
+          loginModal.close();
         $('#loginButton').hide();
         $('#logoutButton').show();
       }

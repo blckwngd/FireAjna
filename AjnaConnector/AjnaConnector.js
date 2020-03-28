@@ -8,7 +8,8 @@ class AjnaConnector {
       auth_state_changed: false,
       object_entered: false,
       object_updated: false,
-      object_left: false
+      object_left: false,
+      heightmap_updated: false
     }
     
     this.objects = [];
@@ -30,11 +31,6 @@ class AjnaConnector {
       this.transformTranslate = turf.transformTranslate;
     }
     this.axios = (typeof axios != "undefined") ? axios : require( "axios" );
-    
-    this.SphericalMercator = (typeof SphericalMercator != "undefined") ? SphericalMercator : require( "@mapbox/sphericalmercator" );
-    this.merc = new SphericalMercator({
-      size: 256
-    });
     
     var GFS = (typeof GeoFirestore == "undefined") ? require( "geofirestore" ).GeoFirestore : GeoFirestore;
     
@@ -180,7 +176,7 @@ class AjnaConnector {
     // check if a new heightmap tile needs to be loaded
     var loadRequired = true;
     if (loadRequired) {
-      this.getHeightmap( location );
+      this.loadHeightmap( location );
     }
   }
   
@@ -273,35 +269,67 @@ class AjnaConnector {
     return [dx * 1000, dy * 1000]; // return in meters
   }
   
-  /** getHeightmap
+  /** setHeightmap
+   *
+   * sets raw data for current heightmap
+   */
+  setHeightmap(heightMap) {
+    this.heightMap = heightMap;
+    if ( this.handler['heightmap_updated'] !== false ) {
+      this.handler['heightmap_updated']( heightMap );
+    }
+  }
+  
+  /** loadHeightmap
    *
    * requests elevation data from mapbox and returns it as heightmap, which can be used by the client
    */
-  getHeightmap( location ) {
+  loadHeightmap( location ) {
     console.log("retrieving heightmap for ", location._long, location._lat);
     // calc bounding box around current position
     var center = turf.point([location._long, location._lat]);
     var distance = this.observed.radius * 2; // heightmap is bigger than observation radius, since we want to move without reloading
     var nw = turf.transformTranslate(center, distance/1000, 315);
     var se = turf.transformTranslate(center, distance/1000, 135);
-    var nw_lon = nw.geometry.coordinates[0];
-    var nw_lat = nw.geometry.coordinates[1];
-    var se_lon = se.geometry.coordinates[0];
-    var se_lat = se.geometry.coordinates[1];
-    console.log("BB from " + nw_lat + "/" + nw_lon + " to " + se_lat + "/" + se_lon);
-    var url = `https://api.elevationapi.com/api/Model/3d/bbox/${nw_lon},${se_lon},${nw_lat},${se_lat}`;
+    var from_lat  = Math.min(nw.geometry.coordinates[1], se.geometry.coordinates[1]);
+    var to_lat    = Math.max(nw.geometry.coordinates[1], se.geometry.coordinates[1]);
+    var from_long = Math.min(nw.geometry.coordinates[0], se.geometry.coordinates[0]);
+    var to_long   = Math.max(nw.geometry.coordinates[0], se.geometry.coordinates[0]);
+    console.log("BB from " + from_lat + "/" + from_long + " to " + to_lat + "/" + to_long);
+    var url = `https://api.elevationapi.com/api/Model/3d/bbox/${from_long},${to_long},${from_lat},${to_lat}`;
+    if (DEBUG) url = "https://cors-anywhere.herokuapp.com/" + url;
     console.log(url);
-    this.axios.get(url, {
-      headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'text/plain'
-       }})
-      .then(res => {
+    this.axios.get(url)
+      .then(function success(res) {
         console.log(res);
-        var r = res.json();
-        console.log(r);
-      });
-  } 
+        if (res.data.success) {
+          // request heightmap
+          var url_hm = `https://api.elevationapi.com${res.data.assetInfo.heightMap.filePath}`;
+          if (DEBUG) url_hm = "https://cors-anywhere.herokuapp.com/" + url_hm;
+          var hm_width = res.data.assetInfo.heightMap.width;
+          var hm_height = res.data.assetInfo.heightMap.height;
+          var attributions = res.data.assetInfo.attributions;
+          this.axios.get(url_hm)
+            .then(function success(res) {
+              if (res.status == 200) {
+                console.log("retrieved heightmap:");
+                console.log(res.data);
+                var heightMap = {
+                  data: res.data,
+                  width: hm_width,
+                  height: hm_height,
+                  from_lat: from_lat,
+                  from_long: from_long,
+                  to_lat: to_lat,
+                  to_long: to_long,
+                  attributions: attributions
+                };
+                this.setHeightmap(heightMap);
+              }
+            }.bind(this));
+        }
+      }.bind(this));
+  }
 
 }
 
