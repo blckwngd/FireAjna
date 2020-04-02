@@ -30,7 +30,9 @@ class AjnaConnector {
       this.turf = turf;
       this.transformTranslate = turf.transformTranslate;
     }
+    
     this.axios = (typeof axios != "undefined") ? axios : require( "axios" );
+    this.getPixels = (typeof getPixels != "undefined") ? getPixels : require( "get-pixels" );
     
     var GFS = (typeof GeoFirestore == "undefined") ? require( "geofirestore" ).GeoFirestore : GeoFirestore;
     
@@ -309,26 +311,88 @@ class AjnaConnector {
           var hm_width = res.data.assetInfo.heightMap.width;
           var hm_height = res.data.assetInfo.heightMap.height;
           var attributions = res.data.assetInfo.attributions;
-          this.axios.get(url_hm)
-            .then(function success(res) {
-              if (res.status == 200) {
-                console.log("retrieved heightmap:");
-                console.log(res.data);
-                var heightMap = {
-                  data: res.data,
-                  width: hm_width,
-                  height: hm_height,
-                  from_lat: from_lat,
-                  from_long: from_long,
-                  to_lat: to_lat,
-                  to_long: to_long,
-                  attributions: attributions
-                };
-                this.setHeightmap(heightMap);
-              }
-            }.bind(this));
+          console.log("now calling getPixels()");
+          getPixels(url_hm, function(err, pixels) {
+            if (err) {
+              console.log("Bad image path", err);
+              return;
+            }
+            console.log("got pixels", pixels);
+            this.setHeightmap({
+              url: url_hm,
+              data: pixels.data,
+              width: hm_width,
+              height: hm_height,
+              from_lat: from_lat,
+              from_long: from_long,
+              to_lat: to_lat,
+              to_long: to_long,
+              attributions: attributions
+            });
+            
+            console.log("TESTING PROJECT/UNPROJECT");
+            console.log(location);
+            var p = this.hmProject(location);
+            console.log(p);
+            var l = this.hmUnproject(p[0], p[1]);
+            console.log(l);
+            var max = 0;
+            var min = 255;
+            for (var i in this.heightMap.data) {
+              max = Math.max(max, this.heightMap.data[i]);
+              min = Math.min(min, this.heightMap.data[i]);
+            }
+            console.log(`min color=${min}`);
+            console.log(`max color=${max}`);
+            console.log("TEST END");
+            
+            this.getGroundHeight( location );
+            
+          }.bind(this));
         }
       }.bind(this));
+  }
+  
+  // world coordinates to x/y pixels on heightMap
+  hmProject( location ) {
+    if (location._lat < this.heightMap.from_lat || location._lat > this.heightMap.to_lat || location._long < this.heightMap.from_long || location._long > this.heightMap.to_long) {
+      console.log("ERROR (hmProject): point outside heightmap");
+      return;
+    }
+    var size_lat = this.heightMap.to_lat - this.heightMap.from_lat;
+    var size_long = this.heightMap.to_long - this.heightMap.from_long;
+    var d_lat = location._lat - this.heightMap.from_lat;
+    var d_long = location._long - this.heightMap.from_long;
+    var rx = d_long / size_long; // 0 .. 1
+    var ry = d_lat / size_lat; // 0 .. 1
+    var x = this.heightMap.width * rx;
+    var y = this.heightMap.height * ry;
+    return [x, y];
+  }
+  
+  // x/y position on heightMap to world coordinates
+  hmUnproject( x, y ) {
+    if (x < 0 || x > this.heightMap.width || y < 0 || y > this.heightMap.height) {
+      console.log("ERROR (hmUnproject): point outside heightmap");
+      return;
+    }
+    var rx = x / this.heightMap.width;
+    var ry = y / this.heightMap.height;
+    var size_lat = this.heightMap.to_lat - this.heightMap.from_lat;
+    var size_long = this.heightMap.to_long - this.heightMap.from_long;
+    var lat = this.heightMap.from_lat + ry * size_lat;
+    var lon = this.heightMap.from_long + rx * size_long;
+    return this.GeoPoint(lat, lon);
+  }
+  
+  getGroundHeight( location ) {
+    var p = this.hmProject(location);
+    var id = this.heightMap.width * Math.round(p[1]) + Math.round(p[0]);
+    console.log(`getGroundHeight for ${location._long}/${location._lat}`);
+    console.log(`projected position: ${p}`);
+    console.log(`map width: ${this.heightMap.width}`);
+    console.log(`id=${id}`);
+    console.log(`pixel color=${this.heightMap.data[id]}`);
   }
 
 }
