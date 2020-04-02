@@ -291,11 +291,17 @@ class AjnaConnector {
     console.log("BB from " + nw_lat + "/" + nw_lon + " to " + se_lat + "/" + se_lon);
     var url = `https://api.elevationapi.com/api/Model/3d/bbox/${nw_lon},${se_lon},${nw_lat},${se_lat}`;
     console.log(url);
-    this.axios.get(url, {
-      headers: {
+    this.axios.get(url,
+      {
+        method: 'GET',
+        mode: 'no-cors',
+        headers: {
           'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'text/plain'
-       }})
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true,
+        credentials: 'same-origin',
+      })
       .then(res => {
         console.log(res);
         var r = res.json();
