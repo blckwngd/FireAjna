@@ -61,24 +61,7 @@
       
       // start signIn process
       // Initialize the FirebaseUI Widget using Firebase.
-      var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
-      ui.start('#firebaseui-auth-container', {
-        signInOptions: [
-          ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
-        ],
-        callbacks: {
-          uiShown: function() {
-            document.getElementById('loader').style.display = 'none';
-          },
-          signInSuccessWithAuthResult: function(authResult, redirectUrl) {
-            $('#loginButton').hide();
-            $('#logoutButton').show();
-            $('#loginModal').hide();
-            return false;
-          }
-        },
-        signInFlow: 'popup'
-      });
+      var ui = new firebaseui.auth.AuthUI(firebase.auth());
       
       ajna.on('auth_state_changed', function(user) {
         if (user) {
@@ -555,6 +538,26 @@
         }
       }
       
+      function openLoginWindow() {
+        ui.start('#firebaseui-auth-container', {
+          signInOptions: [
+            firebase.auth.EmailAuthProvider.PROVIDER_ID
+          ],
+          callbacks: {
+            uiShown: function() {
+              document.getElementById('loader').style.display = 'none';
+            },
+            signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+              $('#loginButton').hide();
+              $('#logoutButton').show();
+              $('#loginModal').hide();
+              return false;
+            }
+          },
+          signInFlow: 'popup'
+        });
+      }
+      
     </script>
     
     
@@ -578,7 +581,7 @@
                   </label>
                 </span>
                 <a class="button icon-plus" onclick="createObject()">create object</a>
-                <a id="loginButton" data-open="loginModal" class="button icon-lock">Login</a>
+                <a id="loginButton" data-open="loginModal" onclick="openLoginWindow()" class="button icon-lock">Login</a>
                 <a id="logoutButton" onclick="logout()" class="button icon-lock">Logout</a>
               </span></p>
             <p></p>

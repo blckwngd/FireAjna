@@ -1,13 +1,10 @@
-// browserify ajna-connector.js --s AjnaConnector -o AjnaConnector.js
+// browserify ajna-connector.js --s AjnaConnector -d -o AjnaConnector.js
 
 const GFS = require( "geofirestore" ).GeoFirestore;
 const turf = require('@turf/turf');
 const transformTranslate = require("@turf/transform-translate");
 const axios = require("axios");
 const getPixels = require( "get-pixels" );
-const firebase = require( "firebase/app" );
-require( "firebase/auth" );
-require( "firebase/firestore" );
 
 class AjnaConnector {
 
@@ -28,10 +25,10 @@ class AjnaConnector {
       location: null,
       radius: null
     };
+    this.heightMap = false;
     
     // Initialize the Firebase SDK
     firebase.initializeApp( firebaseConfig );
-    this.firebase = firebase;
     this.firestore = firebase.firestore();
     
     // handle logon callback
@@ -60,6 +57,10 @@ class AjnaConnector {
   
   logout( ) {
     firebase.auth().signOut();
+  }
+  
+  firebase( ) {
+    return firebase;
   }
   
   /**
@@ -96,7 +97,7 @@ class AjnaConnector {
     }
     if (tag && Array.isArray(this.objects[doc.id].tags)) this.objects[doc.id].tags.push( tag );
     
-    console.log( doc.data().name + " updated!" );
+    //console.log( doc.data().name + " updated!" );
   }
   
   GeoPoint( latitude, longitude ) {
@@ -166,10 +167,19 @@ class AjnaConnector {
 //    this.geoquery.where('permissions', '!=', null).where(onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
 
     // check if a new heightmap tile needs to be loaded
-    var loadRequired = true;
+    var loadRequired = false;
+    if (this.heightMap === false) {
+      loadRequired = true;
+      console.log("first load of a heightmap");
+    } else {
+      var dst = 1000 * turf.distance(turf.point([location._long, location._lat]), turf.point([this.heightMap.center_long, this.heightMap.center_lat]));
+      console.log(`distance from previous location: ${dst}m`);
+      loadRequired = (dst >= this.observed.radius);
+    }
     if (loadRequired) {
       this.loadHeightmap( location );
     }
+    
   }
   
   getObjects( ) {
@@ -300,6 +310,8 @@ class AjnaConnector {
           if (DEBUG) url_hm = "https://cors-anywhere.herokuapp.com/" + url_hm;
           var hm_width = res.data.assetInfo.heightMap.width;
           var hm_height = res.data.assetInfo.heightMap.height;
+          var hm_minElevation = res.data.assetInfo.minElevation;
+          var hm_maxElevation = res.data.assetInfo.maxElevation;
           var attributions = res.data.assetInfo.attributions;
           console.log("now calling getPixels()");
           getPixels(url_hm, function(err, pixels) {
@@ -308,15 +320,31 @@ class AjnaConnector {
               return;
             }
             console.log("got pixels", pixels);
+            
+            // detect height difference per pixel value
+            var max = Math.max.apply(null, pixels.data); // should be 255
+            var min = Math.min.apply(null, pixels.data); // should be 0
+            var heightStep = (hm_minElevation == hm_maxElevation) ? 0 : ((hm_maxElevation - hm_minElevation) / (max - min));
+            console.log(`min color =${min}`);
+            console.log(`max color =${max}`);
+            console.log(`minElevation =${hm_minElevation}`);
+            console.log(`maxElevation =${hm_maxElevation}`);
+            console.log(`heightStep=${heightStep}`);
+            
             this.setHeightmap({
               url: url_hm,
               data: pixels.data,
               width: hm_width,
               height: hm_height,
+              minElevation: hm_minElevation,
+              maxElevation: hm_maxElevation,
+              heightStep: heightStep,
               from_lat: from_lat,
               from_long: from_long,
               to_lat: to_lat,
               to_long: to_long,
+              center_lat: location._lat,
+              center_long: location._long,
               attributions: attributions
             });
             
@@ -326,14 +354,6 @@ class AjnaConnector {
             console.log(p);
             var l = this.hmUnproject(p[0], p[1]);
             console.log(l);
-            var max = 0;
-            var min = 255;
-            for (var i in this.heightMap.data) {
-              max = Math.max(max, this.heightMap.data[i]);
-              min = Math.min(min, this.heightMap.data[i]);
-            }
-            console.log(`min color=${min}`);
-            console.log(`max color=${max}`);
             console.log("TEST END");
             
             this.getGroundHeight( location );
@@ -378,11 +398,14 @@ class AjnaConnector {
   getGroundHeight( location ) {
     var p = this.hmProject(location);
     var id = this.heightMap.width * Math.round(p[1]) + Math.round(p[0]);
+    var ele = this.heightMap.minElevation + this.heightMap.data[id] * this.heightMap.heightStep;
     console.log(`getGroundHeight for ${location._long}/${location._lat}`);
     console.log(`projected position: ${p}`);
     console.log(`map width: ${this.heightMap.width}`);
     console.log(`id=${id}`);
     console.log(`pixel color=${this.heightMap.data[id]}`);
+    console.log(`elevation=${ele}`);
+    return ele;
   }
 
 }
@@ -461,7 +484,7 @@ class AjnaObject {
       type: type,
       parameters: ((typeof message)=="undefined") ? "undefined" : message
     };
-    firestore.collection("objects").doc( this.id ).collection('inbox').add( data ).then(() => {
+    this.ajna.firestore.collection("objects").doc( this.id ).collection('inbox').add( data ).then(() => {
       console.log("message sent successfully");
     }, (error) => {
       console.log("error: ", error);
@@ -483,7 +506,7 @@ class AjnaObject {
   startMessageListener( ) {
     console.log("start listening for inbox items");
     // listen to inbox elements
-    firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).onSnapshot(
+    this.ajna.firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).onSnapshot(
       function(querySnapshot) {
         querySnapshot.forEach( function(doc) {
           if (this.handler.message_received) {
@@ -497,7 +520,7 @@ class AjnaObject {
   }
   
   consumeMessage( id ) {
-    firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).doc( id ).delete().then(
+    this.ajna.firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).doc( id ).delete().then(
       function() {
         // message has been deleted
         console.log("message consumed");

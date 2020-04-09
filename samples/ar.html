@@ -9,6 +9,10 @@
     <script src="https://unpkg.com/@editvr/aframe-dialog-popup-component@1.7.2/dist/aframe-dialog-popup-component.min.js"></script> 
     <script src="https://rawgit.com/caseyyee/aframe-ui-widgets/master/dist/aframe-ui-widgets.min.js"></script>
 
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-firestore.js"></script>
     
     <!-- JQUERY -->
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
@@ -19,18 +23,6 @@
     <!-- FIREBASE UI -->
     <script src="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.js"></script>
     <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.css" />
-    
-    <!-- TURF -->
-    <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
-    
-    <!-- AXIOS -->
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    
-    <!-- FIREBASE -->
-    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-firestore.js"></script>
-    <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>
     
     <!-- FOUNDATION -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.6.1/dist/css/foundation.min.css">
@@ -51,8 +43,9 @@
         appId: "1:1041333232578:web:d6e4f6941228c2ea"
       };
 
-      // Initialize Firebase
+      // Initialize AjnaConnector
       const ajna = new AjnaConnector( firebaseConfig );
+      var authUI = false;
       
       ajna.on('auth_state_changed', function(user) {
         console.log("USER");
@@ -82,25 +75,6 @@
         ajna.logout();
       }
       
-      var ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
-      ui.start('#firebaseui-auth-container', {
-        signInOptions: [
-          ajna.firebase.auth.EmailAuthProvider.PROVIDER_ID
-        ],
-        callbacks: {
-          uiShown: function() {
-            document.getElementById('loader').style.display = 'none';
-          },
-          signInSuccessWithAuthResult: function(authResult, redirectUrl) {
-            console.log("signInSuccessWithAuthResult");
-            $('#loginButton').hide();
-            $('#logoutButton').show();
-            $('#loginModal').hide();
-            return false;
-          }
-        },
-        signInFlow: 'popup'
-      });
       
       ajna.on('object_retrieved', (obj) => {
         updateSceneForObject(obj);
@@ -115,6 +89,28 @@
         console.log(obj.id + " has left the building!");
       });
       
+      function openLoginWindow() {
+        if (!authUI) authUI = new firebaseui.auth.AuthUI(ajna.firebase().auth());
+        authUI.start('#firebaseui-auth-container', {
+          signInOptions: [
+            ajna.firebase().auth.EmailAuthProvider.PROVIDER_ID
+          ],
+          callbacks: {
+            uiShown: function() {
+              document.getElementById('loader').style.display = 'none';
+            },
+            signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+              console.log("signInSuccessWithAuthResult");
+              $('#loginButton').hide();
+              $('#logoutButton').show();
+              $('#loginModal').hide();
+              return false;
+            }
+          },
+          signInFlow: 'popup'
+        });
+      }
+      
       window.onload = function() {        
         // init
         $('#objectModal').hide();
@@ -123,6 +119,7 @@
         //ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
         loginModal = new Foundation.Reveal($('#loginModal'));
         $('#logoutButton').hide();
+        
       }
       
       function camMoved() {
@@ -300,13 +297,13 @@
   </head>
   <body>
   
-	<!-- LOGIN BUTTONS -->
+    <!-- LOGIN BUTTONS -->
     <div style="position:absolute; top: 10px; right: 10px; z-index: 10000;">
-      <a id="loginButton" data-open="loginModal" class="button icon-lock">Login</a>
+      <a id="loginButton" data-open="loginModal" onclick="openLoginWindow()" class="button icon-lock">Login</a>
       <a id="logoutButton" onclick="logout()" class="button icon-lock">Logout</a>
     </div>
     
-	<!-- OBJECT POPUP -->
+    <!-- OBJECT POPUP -->
     <div id="objectModal" class="reveal" style="position:absolute; top: 20px; left:20px; z-index:10001; background: #ffffff; opacity: 0.7; max-height: 80%;" data-reveal data-overlay="false">
       <h2 id="popName">Objectname</h2>
       <p id="popDesc">Description</p>
@@ -320,7 +317,7 @@
     </div>
     
     <!-- LOGIN WINDOW -->
-    <div class="reveal" id="loginModal" data-animation-in="spin-in" data-animation-out="spin-out" data-reveal data-overlay="false" style="z-index:10002">
+    <div class="tiny reveal" id="loginModal" data-animation-in="spin-in" data-animation-out="spin-out" data-overlay="false" data-reveal>
       <div id="firebaseui-auth-container"></div>
       <div id="loader">Loading...</div>
       <button class="close-button" onclick="$('#loginModal').hide()" aria-label="Close modal" type="button">
