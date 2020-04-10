@@ -36,7 +36,8 @@ class AjnaConnector {
       if( this.handler.auth_state_changed ) {
         this.user = user;
         this.handler.auth_state_changed( user );
-        // necessary to re-observe? this.observe( this.observed.location, this.observed.radius )
+        if (this.observed.location)
+          this.observe( this.observed.location, this.observed.radius )
       }
     });
     
