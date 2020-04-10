@@ -2,6 +2,10 @@ const config = require( "./config.js" );
 const config_private = require( "./config_private.js" );
 const mqtt = require("mqtt");
 
+global.firebase = require("@firebase/app").default;
+require("@firebase/auth");
+require("@firebase/firestore");
+
 // MQTT
 var client  = mqtt.connect( config_private.mqtt_uri );
 client.on('connect', function () {
