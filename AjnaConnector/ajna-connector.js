@@ -36,8 +36,9 @@ class AjnaConnector {
       if( this.handler.auth_state_changed ) {
         this.user = user;
         this.handler.auth_state_changed( user );
-        if (this.observed.location)
-          this.observe( this.observed.location, this.observed.radius )
+        if (this.observed.location) {
+          this.observe( this.observed.location, this.observed.radius );
+        }
       }
     });
     
@@ -169,10 +170,8 @@ class AjnaConnector {
     var loadRequired = false;
     if (this.heightMap === false) {
       loadRequired = true;
-      console.log("first load of a heightmap");
     } else {
       var dst = 1000 * turf.distance(turf.point([location._long, location._lat]), turf.point([this.heightMap.center_long, this.heightMap.center_lat]));
-      console.log(`distance from previous location: ${dst}m`);
       loadRequired = (dst >= this.observed.radius);
     }
     if (loadRequired) {
@@ -286,7 +285,6 @@ class AjnaConnector {
    * requests elevation data from mapbox and returns it as heightmap, which can be used by the client
    */
   loadHeightmap( location ) {
-    console.log("retrieving heightmap for ", location._long, location._lat);
     // calc bounding box around current position
     var center = turf.point([location._long, location._lat]);
     var distance = this.observed.radius * 2; // heightmap is bigger than observation radius, since we want to move without reloading
@@ -296,13 +294,10 @@ class AjnaConnector {
     var to_lat    = Math.max(nw.geometry.coordinates[1], se.geometry.coordinates[1]);
     var from_long = Math.min(nw.geometry.coordinates[0], se.geometry.coordinates[0]);
     var to_long   = Math.max(nw.geometry.coordinates[0], se.geometry.coordinates[0]);
-    console.log("BB from " + from_lat + "/" + from_long + " to " + to_lat + "/" + to_long);
     var url = `https://api.elevationapi.com/api/Model/3d/bbox/${from_long},${to_long},${from_lat},${to_lat}`;
     if (DEBUG) url = "https://cors-anywhere.herokuapp.com/" + url;
-    console.log(url);
     axios.get(url)
       .then(function success(res) {
-        console.log(res);
         if (res.data.success) {
           // request heightmap
           var url_hm = `https://api.elevationapi.com${res.data.assetInfo.heightMap.filePath}`;
@@ -312,23 +307,16 @@ class AjnaConnector {
           var hm_minElevation = res.data.assetInfo.minElevation;
           var hm_maxElevation = res.data.assetInfo.maxElevation;
           var attributions = res.data.assetInfo.attributions;
-          console.log("now calling getPixels()");
           getPixels(url_hm, function(err, pixels) {
             if (err) {
               console.log("Bad image path", err);
               return;
             }
-            console.log("got pixels", pixels);
             
             // detect height difference per pixel value
             var max = Math.max.apply(null, pixels.data); // should be 255
             var min = Math.min.apply(null, pixels.data); // should be 0
             var heightStep = (hm_minElevation == hm_maxElevation) ? 0 : ((hm_maxElevation - hm_minElevation) / (max - min));
-            console.log(`min color =${min}`);
-            console.log(`max color =${max}`);
-            console.log(`minElevation =${hm_minElevation}`);
-            console.log(`maxElevation =${hm_maxElevation}`);
-            console.log(`heightStep=${heightStep}`);
             
             this.setHeightmap({
               url: url_hm,
@@ -346,16 +334,6 @@ class AjnaConnector {
               center_long: location._long,
               attributions: attributions
             });
-            
-            console.log("TESTING PROJECT/UNPROJECT");
-            console.log(location);
-            var p = this.hmProject(location);
-            console.log(p);
-            var l = this.hmUnproject(p[0], p[1]);
-            console.log(l);
-            console.log("TEST END");
-            
-            this.getGroundHeight( location );
             
           }.bind(this));
         }
