@@ -1,35 +1,74 @@
-<html>
-  <head>
-    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-    <script type="text/javascript">
-    
-      var terrain = document.getElementById("terrain");
-      var width, height = 1000;
-      var segments_x, segments_y = 100;
-      // Create geometry.
-      var geometry = new THREE.PlaneBufferGeometry(width, height, segments_x, segments_y);
-      geometry.rotateX(- Math.PI / 2);
-      var vertices = geometry.attributes.position.array;
-      for (var i = 0, j = 0, l = vertices.length; i < l; i ++, j += 3) {
-        vertices[j + 1] = terrainData[i] * 10;
-      }
+<!-- import aframe and then ar.js with image tracking / location based features -->
+<script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1c2407b26c61958baa93967b5412487cd94b290b/dist/aframe-master.min.js"></script>
+<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 
-      // Lower geometry.
-      geometry.translate(
-        0, -1 * (terrainData[worldWidth / 2 + worldDepth / 2* worldWidth] * 10 + 500), 0
-      );
+<!-- style for the loader -->
+<style>
+  .arjs-loader {
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 
-      // Create mesh.
-      var mesh = new THREE.Mesh(geometry);
-      terrain.el.setObject3D('mesh', mesh);
-    </script>
-  </head>
-  <body>
-    <a-scene>
-      <a-entity id="terrain" material="side: double; color: green; wireframe: true"></a-entity>
-      <a-box color="red" position="0 2 -5" rotation="0 45 45" scale="2 2 2"></a-box>
+  .arjs-loader div {
+    text-align: center;
+    font-size: 1.25em;
+    color: white;
+  }
+</style>
 
-      <a-sky color="#ECECEC"></a-sky>
-    </a-scene>
-  </body>
-</html>
+<script type="text/javascript">
+window.onload = function() {
+  document
+    .querySelector("#nft1")
+    .addEventListener("markerFound", function() {
+      console.log("image found!");
+    });
+};
+</script>
+
+<body style="margin : 0px; overflow: hidden;">
+  <!-- minimal loader shown until image descriptors are loaded. Loading may take a while according to the device computational power -->
+  <div class="arjs-loader">
+    <div>Loading, please wait...</div>
+  </div>
+
+  <!-- a-frame scene -->
+  <a-scene
+    vr-mode-ui="enabled: false;"
+    renderer="logarithmicDepthBuffer: true;"
+    embedded
+    arjs="trackingMethod: best; sourceType: webcam;debugUIEnabled: false;"
+  >
+    <!-- a-nft is the anchor that defines an Image Tracking entity -->
+    <!-- on 'url' use the path to the Image Descriptors created before. -->
+    <!-- the path should end with the name without the extension e.g. if file is 'pinball.fset' the path should end with 'pinball' -->
+    <a-nft
+      type="nft"
+      url="samples/models/trex/trex"
+      smooth="true"
+      smoothCount="10"
+      smoothTolerance=".01"
+      smoothThreshold="5"
+      emitevents="true"
+      id="nft1"
+    >
+        <!-- as a child of the a-nft entity, you can define the content to show. here's a GLTF model entity -->
+        <a-entity
+            gltf-model="models/fox/Fox.gltf"
+            scale="0.02 0.02 0.02"
+            position="0 0 0"
+        >
+        </a-entity>
+    </a-nft>
+    <!-- static camera that moves according to the device movemenents -->
+    <a-entity camera></a-entity>
+  </a-scene>
+</body>

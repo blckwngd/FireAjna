@@ -33,12 +33,10 @@ class AjnaConnector {
     
     // handle logon callback
     firebase.auth().onAuthStateChanged(( user ) => {
-      console.log("AUTHCHANGED");
-      console.log(user);
       if( this.handler.auth_state_changed ) {
         this.user = user;
         this.handler.auth_state_changed( user );
-        this.observe( this.observed.location, this.observed.radius )
+        // necessary to re-observe? this.observe( this.observed.location, this.observed.radius )
       }
     });
     
@@ -495,6 +493,21 @@ class AjnaObject {
     this.geocollection.doc( this.id ).set( data, { merge: true } );
   }
   
+  setAnimation( name ) {
+    if ( typeof this.doc.data().model == "undefined" ) {
+      console.log("no model to animate");
+      return false;
+    }    
+    this.ajna.setObject (
+      this.id,
+      { "model.animation": name },
+      // onSuccess
+      () => { console.log("animation set :-)"); },
+      // onError
+      (err) => { console.log("animation error :-(", err); },
+    );
+  }
+  
   updateData( data ) {
     this.doc = data;
   }
@@ -503,13 +516,32 @@ class AjnaObject {
     this.send( name, params );
   }
   
-  startMessageListener( ) {
+  startMessageListener( drainQueue ) {
     console.log("start listening for inbox items");
+    drainQueue = (typeof drainQueue == "undefined") ? true : drainQueue;
+    
+    // drain the message queue if requested
+    var busy = false;
+    var numDeleted = 0;
+    if (drainQueue) {
+      var busy = true;
+      this.ajna.firestore.collection('objects').doc( this.id ).collection( 'inbox' ).get()
+      .then(function(querySnapshot) {
+            var batch = this.ajna.firestore.batch();
+            querySnapshot.forEach(function(doc) { numDeleted++; batch.delete(doc.ref); });
+            return batch.commit();
+      }.bind(this)).then(function() {
+          console.log(`drained ${numDeleted} messages from the queue`);
+          busy = false;
+      });
+    }
+    
     // listen to inbox elements
     this.ajna.firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).onSnapshot(
       function(querySnapshot) {
         querySnapshot.forEach( function(doc) {
-          if (this.handler.message_received) {
+          // only call handler when it exists, an when the delete batch is finished
+          if (!busy && this.handler.message_received) {
             this.handler.message_received( doc.id, doc.data() )
           }
         }.bind(this));
