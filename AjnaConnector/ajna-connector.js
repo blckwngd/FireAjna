@@ -459,7 +459,8 @@ class AjnaObject {
   send( type, message ) {
     var data = {
       type: type,
-      parameters: ((typeof message)=="undefined") ? "undefined" : message
+      parameters: ((typeof message)=="undefined") ? "undefined" : message,
+      sender: this.ajna.user.uid
     };
     this.ajna.firestore.collection("objects").doc( this.id ).collection('inbox').add( data ).then(() => {
       console.log("message sent successfully");
