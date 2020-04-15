@@ -1,0 +1,35 @@
+type Model = {
+  url: string,
+  scale?: float[3],
+  animation?: string
+}
+
+type Permission = ["r" | "w" | "x" | "d"]
+
+type Permissions = {
+  a: ["r" | "w" | "x" | "d", Permission?]
+}
+
+
+type AjnaObjectData = {
+  name: string,
+  description?: string,
+  coordinates: latlng,
+  model?: Model,
+  actions?: map,
+  owner: string,
+  p: Permissions
+}
+
+type AjnaObject = {
+  d: AjnaObjectData,
+  g: GeoHash,
+  l: latlng
+}
+
+match /objects/{object} is AjnaObject {
+  allow read: if !isPermissioned(resource.data.d) || isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'r');
+  allow write, update: if isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w')));
+  allow delete: if isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'd') || hasUserPerm(resource.data.d, 'd');
+  allow create: if isLoggedIn();
+}
