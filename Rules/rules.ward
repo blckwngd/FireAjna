@@ -1,20 +1,28 @@
+// usage:
+// fireward -i rules.ward -o ajna.rules
+rules_version = "2";
+
 type Model = {
   url: string,
   scale?: float[3],
   animation?: string
 }
 
-type Permission = ["r" | "w" | "x" | "d"]
+type Permission = "r" | "w" | "x" | "d"
 
 type Permissions = {
-  a: ["r" | "w" | "x" | "d", Permission?]
+  a: Permission[], // "r","w"
+  r: Permission[], // "r",x","d"
+  u?: map,
+  g?: map
 }
-
 
 type AjnaObjectData = {
   name: string,
   description?: string,
   coordinates: latlng,
+  altitude?: float,
+  altitudeClamp?: "s" | "g", // s=sealevel, g=ground
   model?: Model,
   actions?: map,
   owner: string,
@@ -23,8 +31,74 @@ type AjnaObjectData = {
 
 type AjnaObject = {
   d: AjnaObjectData,
-  g: GeoHash,
+  g: string,
   l: latlng
+}
+
+type Message = {
+  sender: string,
+  type: string,
+  parameters: any
+}
+
+
+// checks if the user is logged in
+function isLoggedIn() {
+  return (request.auth != null) && (request.auth.uid != null);
+}
+
+// checks if an entity (subj) has a permissions-entry
+function isPermissioned(subj) {
+  return subj.p != null;
+}
+
+function isUserPermissioned(subj) {
+  return (subj.p != null) && (subj.p.u != null);
+}
+
+function isGroupPermissioned(subj) {
+  return (subj.p != null) && (subj.p.g != null);
+}
+
+function isAnonymousPermissioned(subj) {
+  return (subj.p != null) && (subj.p.a != null);
+}
+
+function isRegisteredPermissioned(subj) {
+  return (subj.p != null) && (subj.p.r != null);
+}
+
+// checks if an entity has a specific public permission (i.e. r, w)
+function hasAnonymousPerm(subj, perm) {
+  return isAnonymousPermissioned(subj) && 
+    perm in subj.p.a;
+}
+
+// checks if an entity has a given user-specific permission (i.e. r, w)
+function hasUserPerm(subj, perm) {
+  return isLoggedIn() &&
+    isUserPermissioned(subj) &&
+    request.auth.uid in (subj.p.u.keys()) &&
+    perm in subj.p.u[request.auth.uid];
+}
+
+// checks if the logged in user is the owner of the document 
+function isOwner(subj) {
+  return subj.owner == request.auth.uid;
+}
+
+// checks if the user is trying to modify permissions
+function permissionsNotTouched() {
+  // TODO warum kommt hier immer ein p an?!?!? >.<
+  return (!request.resource.data.d.keys().hasAny(['p']) || 
+    (request.resource.data.d.p == resource.data.d.p)
+  );
+  //return !(request.resource.data.d.p);
+}
+
+// checks if the logged in user is the owner of the document 
+function isSender(msg) {
+  return subj.sender == request.auth.uid;
 }
 
 match /objects/{object} is AjnaObject {
@@ -32,4 +106,13 @@ match /objects/{object} is AjnaObject {
   allow write, update: if isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w')));
   allow delete: if isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'd') || hasUserPerm(resource.data.d, 'd');
   allow create: if isLoggedIn();
+  
+  // permissions for posting messages to the inbox
+  // note: a "firewall" to allow users to post on special topics is realized client-side, via msg_p permissions
+  match /inbox/{message} is Message {
+    allow create: if isSender(resource.data); // anyone can send message, but has to provide sender information
+    allow write, update, delete: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
+    allow read, get, list: if isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
+  }
+  
 }

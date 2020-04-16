@@ -1,6 +1,7 @@
-
+rules_version = "2";
 service cloud.firestore {
   match /databases/{database}/documents {
+    
     function is____Model(data, prev) {
       return data.keys().hasAll(['url'])
       && data.size() >= 1 && data.size() <= 3
@@ -26,45 +27,47 @@ service cloud.firestore {
       );
     }
     function is____Permission(data, prev) {
-      return ( data is list && data.size() <= 1 && data.size() >= 1
-        && (
-          data!=null && data is list && data.size() > 0 && (
-            data[0] == "r"
-            || data[0] == "w"
-            || data[0] == "x"
-            || data[0] == "d"
-          )
-        )
-      );
+      return data == "r"
+      || data == "w"
+      || data == "x"
+      || data == "d";
     }
     function is____Permissions(data, prev) {
-      return data.keys().hasAll(['a'])
-      && data.size() >= 1 && data.size() <= 1
-      && data.keys().hasOnly(['a'])
-      && ( data.a is list && data.a.size() <= 2 && data.a.size() >= 1
-        && (
-          data!=null && 'a' in data && data.a is list && data.a.size() > 0 && (
-            data.a[0] == "r"
-            || data.a[0] == "w"
-            || data.a[0] == "x"
-            || data.a[0] == "d"
-          )
-        )
-        && (
-          !(data!=null && 'a' in data && data.a is list && data.a.size() > 1) ||  data.a[1] == null  || (!(prev!=null && 'a' in prev && prev.a is list && prev.a.size() > 1) && is____Permission(data.a[1], null) || prev!=null && 'a' in prev && prev.a is list && prev.a.size() > 1 && is____Permission(data.a[1], prev.a[1]))
-        )
+      return data.keys().hasAll(['a', 'r'])
+      && data.size() >= 2 && data.size() <= 4
+      && data.keys().hasOnly(['a', 'r', 'u', 'g'])
+      && data.a is list
+      && data.r is list
+      && (
+        !data.keys().hasAny(['u'])
+        || data.u is map
+      )
+      && (
+        !data.keys().hasAny(['g'])
+        || data.g is map
       );
     }
     function is____AjnaObjectData(data, prev) {
       return data.keys().hasAll(['name', 'coordinates', 'owner', 'p'])
-      && data.size() >= 4 && data.size() <= 7
-      && data.keys().hasOnly(['name', 'description', 'coordinates', 'model', 'actions', 'owner', 'p'])
+      && data.size() >= 4 && data.size() <= 9
+      && data.keys().hasOnly(['name', 'description', 'coordinates', 'altitude', 'altitudeClamp', 'model', 'actions', 'owner', 'p'])
       && data.name is string
       && (
         !data.keys().hasAny(['description'])
         || data.description is string
       )
       && data.coordinates is latlng
+      && (
+        !data.keys().hasAny(['altitude'])
+        || (data.altitude is float || data.altitude is int)
+      )
+      && (
+        !data.keys().hasAny(['altitudeClamp'])
+        || (
+          data.altitudeClamp == "s"
+          || data.altitudeClamp == "g"
+        )
+      )
       && (
         !data.keys().hasAny(['model'])
         || (!(prev!=null && 'model' in prev) && is____Model(data.model, null) || prev!=null && 'model' in prev && is____Model(data.model, prev.model))
@@ -81,8 +84,49 @@ service cloud.firestore {
       && data.size() >= 3 && data.size() <= 3
       && data.keys().hasOnly(['d', 'g', 'l'])
       && (!(prev!=null && 'd' in prev) && is____AjnaObjectData(data.d, null) || prev!=null && 'd' in prev && is____AjnaObjectData(data.d, prev.d))
-      && (!(prev!=null && 'g' in prev) && is____GeoHash(data.g, null) || prev!=null && 'g' in prev && is____GeoHash(data.g, prev.g))
+      && data.g is string
       && data.l is latlng;
+    }
+    function is____Message(data, prev) {
+      return data.keys().hasAll(['sender', 'type', 'parameters'])
+      && data.size() >= 3 && data.size() <= 3
+      && data.keys().hasOnly(['sender', 'type', 'parameters'])
+      && data.sender is string
+      && data.type is string
+      && true;
+    }
+    function isLoggedIn() {
+      return (request.auth != null) && (request.auth.uid != null);
+    }
+    function isPermissioned(subj) {
+      return subj.p != null;
+    }
+    function isUserPermissioned(subj) {
+      return (subj.p != null) && (subj.p.u != null);
+    }
+    function isGroupPermissioned(subj) {
+      return (subj.p != null) && (subj.p.g != null);
+    }
+    function isAnonymousPermissioned(subj) {
+      return (subj.p != null) && (subj.p.a != null);
+    }
+    function isRegisteredPermissioned(subj) {
+      return (subj.p != null) && (subj.p.r != null);
+    }
+    function hasAnonymousPerm(subj, perm) {
+      return isAnonymousPermissioned(subj) && perm in subj.p.a;
+    }
+    function hasUserPerm(subj, perm) {
+      return isLoggedIn() && isUserPermissioned(subj) && request.auth.uid in (subj.p.u.keys()) && perm in subj.p.u[request.auth.uid];
+    }
+    function isOwner(subj) {
+      return subj.owner == request.auth.uid;
+    }
+    function permissionsNotTouched() {
+      return (!request.resource.data.d.keys().hasAny(['p']) || (request.resource.data.d.p == resource.data.d.p));
+    }
+    function isSender(msg) {
+      return subj.sender == request.auth.uid;
     }
     match /objects/{object} {
       function is______PathType(data, prev) {
@@ -92,6 +136,14 @@ service cloud.firestore {
       allow write, update: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w'))));
       allow delete: if isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'd') || hasUserPerm(resource.data.d, 'd');
       allow create: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isLoggedIn());
+      match /inbox/{message} {
+        function is______PathType(data, prev) {
+          return (!(prev!=null) && is____Message(data, null) || prev!=null && is____Message(data, prev));
+        }
+        allow create: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data));
+        allow write, update, delete: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d));
+        allow read, get, list: if isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
+      }
     }
   }
 }
