@@ -178,6 +178,7 @@
         objectModal.open();
         var o = ajna.getObject(id);
         var d = o.doc.data();
+        objectModal.open();
         $('#objectModalObjectId').val(id);
         $('#inpName').val(d.name);
         $('#txtName').html(d.name);
@@ -366,7 +367,7 @@
               (err) => { console.log("error :-(", err); },
             )
           });
-          google.maps.event.addListener(marker, "click", (event) => { editModeOff(); openObjEditor(obj.id); });
+          google.maps.event.addListener(marker, "click", (event) => { console.log("click"); setTimeout(function(){objView(obj.id);}, 10); });
           markers[obj.id] = marker;
         }
       }
