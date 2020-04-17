@@ -126,7 +126,7 @@ service cloud.firestore {
       return (!request.resource.data.d.keys().hasAny(['p']) || (request.resource.data.d.p == resource.data.d.p));
     }
     function isSender(msg) {
-      return subj.sender == request.auth.uid;
+      return msg.sender == request.auth.uid;
     }
     match /objects/{object} {
       function is______PathType(data, prev) {
@@ -141,8 +141,11 @@ service cloud.firestore {
           return (!(prev!=null) && is____Message(data, null) || prev!=null && is____Message(data, prev));
         }
         allow create: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data));
-        allow write, update, delete: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d));
-        allow read, get, list: if isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
+        allow write, update: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d));
+      }
+      match /inbox/{message} {
+        allow delete: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
+        allow read, get, list: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
       }
     }
   }

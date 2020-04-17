@@ -507,11 +507,13 @@ class AjnaObject {
       var busy = true;
       this.ajna.firestore.collection('objects').doc( this.id ).collection( 'inbox' ).get()
       .then(function(querySnapshot) {
+            console.log("got message queue. draining it if necessary.");
             var batch = this.ajna.firestore.batch();
             querySnapshot.forEach(function(doc) { numDeleted++; batch.delete(doc.ref); });
-            return batch.commit();
+            batch.commit().catch(function(e) { console.log("EXCEPTION 3"); console.log(e); });
       }.bind(this)).then(function() {
-          console.log(`drained ${numDeleted} messages from the queue`);
+          if (numDeleted > 0)
+            console.log(`drained ${numDeleted} messages from the queue`);
           busy = false;
       });
     }

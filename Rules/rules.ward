@@ -98,7 +98,7 @@ function permissionsNotTouched() {
 
 // checks if the logged in user is the owner of the document 
 function isSender(msg) {
-  return subj.sender == request.auth.uid;
+  return msg.sender == request.auth.uid;
 }
 
 match /objects/{object} is AjnaObject {
@@ -111,8 +111,11 @@ match /objects/{object} is AjnaObject {
   // note: a "firewall" to allow users to post on special topics is realized client-side, via msg_p permissions
   match /inbox/{message} is Message {
     allow create: if isSender(resource.data); // anyone can send message, but has to provide sender information
-    allow write, update, delete: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
-    allow read, get, list: if isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
+    allow write, update: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
+  }
+  match /inbox/{message} {
+    allow delete: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
+    allow read, get, list: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
   }
   
 }
