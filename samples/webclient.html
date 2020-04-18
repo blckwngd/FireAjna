@@ -355,7 +355,12 @@
       
       function objDelete(id) {
         if(window.confirm("are you sure?")) {
-          console.log("coming soon...");
+          var o = ajna.getObject(id);
+          o.delete( function(success) {
+            alert('object deleted');
+            markers[id].setMap(null);
+            console.log(`success=${success}`);
+          });
         }
       }
       
@@ -433,7 +438,7 @@
       }
       
       function removeTableRow(obj) {
-        $('#tr_' + obj.id).remove();
+        objectTable.row(`#${obj.id}`).remove().draw();
       }
       
       

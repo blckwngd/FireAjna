@@ -492,6 +492,22 @@ class AjnaObject {
     this.doc = data;
   }
   
+  delete( callback ) {
+    this.ajna.firestore.collection( 'objects' ).doc( this.id ).delete()
+    .catch(
+      function( ) {
+        if (typeof callback != "undefined")
+          callback (false);
+      }
+    )
+    .then(
+      function( ) {
+        if (typeof callback != "undefined")
+          callback (true);
+      }
+    )
+  }
+  
   executeAction( name, params ) {
     this.send( name, params );
   }
