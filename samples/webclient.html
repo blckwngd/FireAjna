@@ -65,7 +65,7 @@
       
       var objectModal;
       var loginModal;
-      var objectTable;
+      var objectTable = null;
       
       // start signIn process
       // Initialize the FirebaseUI Widget using Firebase.
@@ -124,22 +124,37 @@
         removeMapMarker(obj);
       });
       
-      window.onload = function() {     
+      var initDone = false;
+      window.onload = function() {
+        if (initDone)
+          return;
         // init
         objectModal = new Foundation.Reveal($('#objectModal'));
         loginModal = new Foundation.Reveal($('#loginModal'));
         $('#logoutButton').hide();
         editModeOff();
         ajna.observe( ajna.GeoPoint(50.451346, 7.536344), 1000);
-          
+        
+        // setup data table for objects
         objectTable = $('#table_objects').DataTable({
           columns: [
-            { title: "DT_RowId" },
             { title: "name" },
             { title: "description" },
-            { title: "distance" },
+            { title: "distance (m)" },
             { title: "actions" }
-          ]});
+          ]
+        });
+        objectTable.order([2, "asc"]);
+        
+        objectTable.on( 'mouseover', 'tbody tr', function () {
+          var id = objectTable.row( this ).id();
+          markers[id].setAnimation(google.maps.Animation.BOUNCE);
+        } );
+        objectTable.on( 'mouseleave', 'tbody tr', function () {
+          var id = objectTable.row( this ).id();
+          markers[id].setAnimation(null);
+        } );
+        initDone = true;
       }
       
       window.setInterval(ajna.cleanup.bind(ajna), 300);
@@ -401,30 +416,20 @@
         var dst = (obj.doc.distance * 1000).toFixed(1);
         var namelink = "<a href=\"javascript:objView(\'" + obj.id + "\')\">" + data.name + "</a>";
         
-        /*.mouseover(function() {
-          // make the marker jump!
-          markers[obj.id].setAnimation(google.maps.Animation.BOUNCE);
-        }).mouseout(function() {
-          // make the marker jump!
-          markers[obj.id].setAnimation(null);
-        });*/
-        var cols = {
-          "DT_RowId": obj.id,
-          "name": namelink,
-          "description": data.description,
-          "distance": dst + "m",
-          "actions": actions
-        };
-        var r = objectTable.row(obj.id);
+        var cols = [
+          namelink,
+          data.description,
+          dst,
+          actions
+        ];
+        var r = objectTable.row(`#${obj.id}`);
         if (r.length == 0) {
-        //if($('#tr_' + obj.id).length == 0) {
-          //row.appendTo("#table_objects");
-          objectTable.row.add(cols).draw( false );
+          cols["DT_RowId"] = obj.id;
+          objectTable.row.add(cols).draw( );
         } else {
-          console.log("===ROW===");
           r.data(cols).draw();
-          //$('#tr_' + obj.id).replaceWith(row);
         }
+        
       }
       
       function removeTableRow(obj) {
