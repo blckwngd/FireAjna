@@ -483,7 +483,7 @@ class AjnaObject {
     console.log("setting animation...");
     this.ajna.setObject (
       this.id,
-      { model: {animation: name}},
+      { "model.animation": name},
       // onSuccess
       () => { console.log("animation set :-)"); },
       // onError
