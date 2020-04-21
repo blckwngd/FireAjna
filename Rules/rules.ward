@@ -5,7 +5,7 @@ rules_version = "2";
 
 type Model = {
   url: string,
-  scale?: float[3],
+  scale?: float | float[3],
   animation?: string
 }
 

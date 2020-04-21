@@ -9,15 +9,18 @@ service cloud.firestore {
       && data.url is string
       && (
         !data.keys().hasAny(['scale'])
-        || ( data.scale is list && data.scale.size() <= 3 && data.scale.size() >= 0
-          && (
-            !(data!=null && 'scale' in data && data.scale is list && data.scale.size() > 0) ||  data.scale[0] == null  || (data.scale[0] is float || data.scale[0] is int)
-          )
-          && (
-            !(data!=null && 'scale' in data && data.scale is list && data.scale.size() > 1) ||  data.scale[1] == null  || (data.scale[1] is float || data.scale[1] is int)
-          )
-          && (
-            !(data!=null && 'scale' in data && data.scale is list && data.scale.size() > 2) ||  data.scale[2] == null  || (data.scale[2] is float || data.scale[2] is int)
+        || (
+          (data.scale is float || data.scale is int)
+          || ( data.scale is list && data.scale.size() <= 3 && data.scale.size() >= 0
+            && (
+              !(data!=null && 'scale' in data && data.scale is list && data.scale.size() > 0) ||  data.scale[0] == null  || (data.scale[0] is float || data.scale[0] is int)
+            )
+            && (
+              !(data!=null && 'scale' in data && data.scale is list && data.scale.size() > 1) ||  data.scale[1] == null  || (data.scale[1] is float || data.scale[1] is int)
+            )
+            && (
+              !(data!=null && 'scale' in data && data.scale is list && data.scale.size() > 2) ||  data.scale[2] == null  || (data.scale[2] is float || data.scale[2] is int)
+            )
           )
         )
       )

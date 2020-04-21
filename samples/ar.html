@@ -203,6 +203,8 @@
           }
           if (has3DModel && (typeof data.model.scale == "object") && (data.model.scale.length == 3)) {
             model.setAttribute('scale', data.model.scale[0] + " " + data.model.scale[1] + " " + data.model.scale[2]);
+          } else if (has3DModel && (typeof data.model.scale == "number")) {
+            model.setAttribute('scale', data.model.scale + " " + data.model.scale + " " + data.model.scale);
           }
           
           // <a-text> // floating name
