@@ -1,5 +1,6 @@
-// usage:
-// fireward -i rules.ward -o ajna.rules
+// usage (in firebase app dir):
+// fireward -i ../Rules/rules.ward -o firestore.rules
+// firebase deploy --only firestore:rules
 rules_version = "2";
 
 type Model = {
@@ -31,6 +32,12 @@ type AjnaObjectData = {
 
 type AjnaObject = {
   d: AjnaObjectData,
+  g: string,
+  l: latlng
+}
+
+type PartialAjnaObject = {
+  d: any,
   g: string,
   l: latlng
 }
@@ -101,9 +108,13 @@ function isSender(msg) {
   return msg.sender == request.auth.uid;
 }
 
+match /objects/{object} is PartialAjnaObject {
+  allow update: if isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w')));
+}
+
 match /objects/{object} is AjnaObject {
   allow read: if !isPermissioned(resource.data.d) || isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'r');
-  allow write, update: if isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w')));
+  allow write: if isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w')));
   allow delete: if isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'd') || hasUserPerm(resource.data.d, 'd');
   allow create: if isLoggedIn();
   
@@ -111,7 +122,7 @@ match /objects/{object} is AjnaObject {
   // note: a "firewall" to allow users to post on special topics is realized client-side, via msg_p permissions
   match /inbox/{message} is Message {
     allow create: if isSender(resource.data); // anyone can send message, but has to provide sender information
-    allow write, update: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
+    allow write: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
   }
   match /inbox/{message} {
     allow delete: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);

@@ -87,6 +87,14 @@ service cloud.firestore {
       && data.g is string
       && data.l is latlng;
     }
+    function is____PartialAjnaObject(data, prev) {
+      return data.keys().hasAll(['d', 'g', 'l'])
+      && data.size() >= 3 && data.size() <= 3
+      && data.keys().hasOnly(['d', 'g', 'l'])
+      && true
+      && data.g is string
+      && data.l is latlng;
+    }
     function is____Message(data, prev) {
       return data.keys().hasAll(['sender', 'type', 'parameters'])
       && data.size() >= 3 && data.size() <= 3
@@ -130,10 +138,16 @@ service cloud.firestore {
     }
     match /objects/{object} {
       function is______PathType(data, prev) {
+        return (!(prev!=null) && is____PartialAjnaObject(data, null) || prev!=null && is____PartialAjnaObject(data, prev));
+      }
+      allow update: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w'))));
+    }
+    match /objects/{object} {
+      function is______PathType(data, prev) {
         return (!(prev!=null) && is____AjnaObject(data, null) || prev!=null && is____AjnaObject(data, prev));
       }
       allow read: if !isPermissioned(resource.data.d) || isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'r');
-      allow write, update: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w'))));
+      allow write: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w'))));
       allow delete: if isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'd') || hasUserPerm(resource.data.d, 'd');
       allow create: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isLoggedIn());
       match /inbox/{message} {
@@ -141,7 +155,7 @@ service cloud.firestore {
           return (!(prev!=null) && is____Message(data, null) || prev!=null && is____Message(data, prev));
         }
         allow create: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data));
-        allow write, update: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d));
+        allow write: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d));
       }
       match /inbox/{message} {
         allow delete: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);

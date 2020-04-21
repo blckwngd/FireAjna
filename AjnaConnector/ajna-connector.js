@@ -221,17 +221,18 @@ class AjnaConnector {
   
   // save an object to the database.
   setObject (id, data, onSuccess, onError) {
-    var that = this;
-    this.geocollection.doc( id ).update( data ).then((docRef) => {
-      this.geocollection.doc( id ).get( ).then((docRef) => {
+    console.log("setObject(): DATA=");
+    console.log(data);
+    this.geocollection.doc( id ).update( data ).then(function(docRef) {
+      this.geocollection.doc( id ).get( ).then(function(docRef) {
         // update local copy of the object
-        that.objects[id].updateData( docRef );
-      }, (error) => {
+        this.objects[id].updateData( docRef );
+      }.bind(this), (error) => {
         console.log('Error: ', error);
       });
       
       if (onSuccess) onSuccess();
-    }, (error) => {
+    }.bind(this), (error) => {
       console.log('Error: ', error);
       if (onError) onError();
     });
@@ -474,13 +475,15 @@ class AjnaObject {
   }
   
   setAnimation( name ) {
+    console.log(`setAnimation(${name})`);
     if ( typeof this.doc.data().model == "undefined" ) {
       console.log("no model to animate");
       return false;
-    }    
+    }
+    console.log("setting animation...");
     this.ajna.setObject (
       this.id,
-      { "model.animation": name },
+      { model: {animation: name}},
       // onSuccess
       () => { console.log("animation set :-)"); },
       // onError
