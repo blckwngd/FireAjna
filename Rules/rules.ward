@@ -27,6 +27,7 @@ type AjnaObjectData = {
   model?: Model,
   actions?: map,
   owner: string,
+  agent?: string,
   p: Permissions
 }
 
@@ -44,9 +45,17 @@ type PartialAjnaObject = {
 
 type Message = {
   sender: string,
+  sendingObject?: string,
+  receivingObject?: string,
   type: string,
   parameters: any
 }
+
+type User = {
+  firstName: string,
+  lastName: string,
+}
+
 
 
 // checks if the user is logged in
@@ -108,6 +117,7 @@ function isSender(msg) {
   return msg.sender == request.auth.uid;
 }
 
+
 match /objects/{object} is PartialAjnaObject {
   allow update: if isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w')));
 }
@@ -129,4 +139,12 @@ match /objects/{object} is AjnaObject {
     allow read, get, list: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
   }
   
+}
+
+match /users/{userId} is User {
+  allow create, read, get, list, delete: if (request.auth.id == userId);
+  
+  match /inbox/{message} is Message {
+    allow create, read, get, list, delete: if isSender(resource.data) || (request.auth.id == userId); // the sender and the recipient both have full permissions on the message. and no one else. 
+  }
 }

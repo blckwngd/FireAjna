@@ -52,8 +52,8 @@ service cloud.firestore {
     }
     function is____AjnaObjectData(data, prev) {
       return data.keys().hasAll(['name', 'coordinates', 'owner', 'p'])
-      && data.size() >= 4 && data.size() <= 9
-      && data.keys().hasOnly(['name', 'description', 'coordinates', 'altitude', 'altitudeClamp', 'model', 'actions', 'owner', 'p'])
+      && data.size() >= 4 && data.size() <= 10
+      && data.keys().hasOnly(['name', 'description', 'coordinates', 'altitude', 'altitudeClamp', 'model', 'actions', 'owner', 'agent', 'p'])
       && data.name is string
       && (
         !data.keys().hasAny(['description'])
@@ -80,6 +80,10 @@ service cloud.firestore {
         || data.actions is map
       )
       && data.owner is string
+      && (
+        !data.keys().hasAny(['agent'])
+        || data.agent is string
+      )
       && (!(prev!=null && 'p' in prev) && is____Permissions(data.p, null) || prev!=null && 'p' in prev && is____Permissions(data.p, prev.p));
     }
     function is____AjnaObject(data, prev) {
@@ -100,11 +104,26 @@ service cloud.firestore {
     }
     function is____Message(data, prev) {
       return data.keys().hasAll(['sender', 'type', 'parameters'])
-      && data.size() >= 3 && data.size() <= 3
-      && data.keys().hasOnly(['sender', 'type', 'parameters'])
+      && data.size() >= 3 && data.size() <= 5
+      && data.keys().hasOnly(['sender', 'sendingObject', 'receivingObject', 'type', 'parameters'])
       && data.sender is string
+      && (
+        !data.keys().hasAny(['sendingObject'])
+        || data.sendingObject is string
+      )
+      && (
+        !data.keys().hasAny(['receivingObject'])
+        || data.receivingObject is string
+      )
       && data.type is string
       && true;
+    }
+    function is____User(data, prev) {
+      return data.keys().hasAll(['firstName', 'lastName'])
+      && data.size() >= 2 && data.size() <= 2
+      && data.keys().hasOnly(['firstName', 'lastName'])
+      && data.firstName is string
+      && data.lastName is string;
     }
     function isLoggedIn() {
       return (request.auth != null) && (request.auth.uid != null);
@@ -163,6 +182,18 @@ service cloud.firestore {
       match /inbox/{message} {
         allow delete: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
         allow read, get, list: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
+      }
+    }
+    match /users/{userId} {
+      function is______PathType(data, prev) {
+        return (!(prev!=null) && is____User(data, null) || prev!=null && is____User(data, prev));
+      }
+      allow create, read, get, list, delete: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && ((request.auth.id == userId));
+      match /inbox/{message} {
+        function is______PathType(data, prev) {
+          return (!(prev!=null) && is____Message(data, null) || prev!=null && is____Message(data, prev));
+        }
+        allow create, read, get, list, delete: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data) || (request.auth.id == userId));
       }
     }
   }

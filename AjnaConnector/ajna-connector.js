@@ -461,9 +461,13 @@ class AjnaObject {
     var data = {
       type: type,
       parameters: ((typeof message)=="undefined") ? "undefined" : message,
-      sender: this.ajna.user.uid
+      sender: this.ajna.user.uid,
+      receivingObject: this.id
     };
-    this.ajna.firestore.collection("objects").doc( this.id ).collection('inbox').add( data ).then(() => {
+    // message is sent to the objects agent. if it doesn´t exist, send to its owner.
+    var recipient = this.doc.data().agent || this.doc.data().owner;
+    
+    this.ajna.firestore.collection("users").doc( recipient ).collection('inbox').add( data ).then(() => {
       console.log("message sent successfully");
     }, (error) => {
       console.log("error: ", error);
