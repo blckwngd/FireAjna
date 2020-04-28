@@ -519,6 +519,11 @@ class AjnaObject {
     this.send( name, params );
   }
   
+  /**
+   * Listens for messages which were sent to this object.
+   * Requires that the current user is either the owner, or the agent for the object.
+   * If requested by 'drainQueue', all existing messages will be deleted from the inbox before starting the listener.
+   */
   startMessageListener( drainQueue ) {
     console.log("start listening for inbox items");
     drainQueue = (typeof drainQueue == "undefined") ? true : drainQueue;
@@ -528,7 +533,8 @@ class AjnaObject {
     var numDeleted = 0;
     if (drainQueue) {
       var busy = true;
-      this.ajna.firestore.collection('objects').doc( this.id ).collection( 'inbox' ).get()
+      // get all documents in the users inbox, which were sent to the current object (this)
+      this.ajna.firestore.collection('users').doc( this.ajna.user.uid ).collection( 'inbox' ).where('receiving_object', '==', this.id).get()
       .then(function(querySnapshot) {
             console.log("got message queue. draining it if necessary.");
             var batch = this.ajna.firestore.batch();
@@ -541,8 +547,8 @@ class AjnaObject {
       });
     }
     
-    // listen to inbox elements
-    this.ajna.firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).onSnapshot(
+    // listen to the users inbox for messages, which were sent to the current object (this)
+    this.ajna.firestore.collection( 'users' ).doc( this.ajna.user.uid ).collection( 'inbox' ).where('receiving_object', '==', this.id).onSnapshot(
       function(querySnapshot) {
         querySnapshot.forEach( function(doc) {
           // only call handler when it exists, an when the delete batch is finished
@@ -557,7 +563,7 @@ class AjnaObject {
   }
   
   consumeMessage( id ) {
-    this.ajna.firestore.collection( 'objects' ).doc( this.id ).collection( 'inbox' ).doc( id ).delete().then(
+    this.ajna.firestore.collection( 'users' ).doc( this.ajna.user.uid ).collection( 'inbox' ).doc( id ).delete().then(
       function() {
         // message has been deleted
         console.log("message consumed");
