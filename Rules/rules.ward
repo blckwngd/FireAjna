@@ -44,11 +44,11 @@ type PartialAjnaObject = {
 }
 
 type Message = {
-  sender: string,
+  sender?: string,
   sendingObject?: string,
   receivingObject?: string,
-  type: string,
-  parameters: any
+  type?: string,
+  parameters?: any
 }
 
 type User = {
@@ -105,7 +105,6 @@ function isOwner(subj) {
 
 // checks if the user is trying to modify permissions
 function permissionsNotTouched() {
-  // TODO warum kommt hier immer ein p an?!?!? >.<
   return (!request.resource.data.d.keys().hasAny(['p']) || 
     (request.resource.data.d.p == resource.data.d.p)
   );
@@ -128,23 +127,17 @@ match /objects/{object} is AjnaObject {
   allow delete: if isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'd') || hasUserPerm(resource.data.d, 'd');
   allow create: if isLoggedIn();
   
-  // permissions for posting messages to the inbox
-  // note: a "firewall" to allow users to post on special topics is realized client-side, via msg_p permissions
-  match /inbox/{message} is Message {
-    allow create: if isSender(resource.data); // anyone can send message, but has to provide sender information
-    allow write: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
-  }
-  match /inbox/{message} {
-    allow delete: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d);
-    allow read, get, list: if isSender(resource.data) || isOwner(get(/databases/$(database)/documents/objects/$(object)).data.d); // everything else is restricted to the owner of the object
-  }
-  
 }
 
-match /users/{userId} is User {
-  allow create, read, get, list, delete: if (request.auth.id == userId);
+match /users/{userId} {//} is User {
+  allow create, read, get, list, delete: if true; //(request.auth.uid == userId);
   
+  // permissions for posting messages to the inbox, reading and deleting them
+  // note: a "firewall" to allow users to post on special topics is realized client-side
   match /inbox/{message} is Message {
-    allow create, read, get, list, delete: if isSender(resource.data) || (request.auth.id == userId); // the sender and the recipient both have full permissions on the message. and no one else. 
+    allow create, write: if isSender(resource.data) || (request.auth.uid == userId); // the sender and the recipient both have full permissions on the message. and no one else. 
+  }
+  match /inbox/{message} {
+    allow read, get, list, delete: if isSender(resource.data) || (request.auth.uid == userId); // the sender and the recipient both have full permissions on the message. and no one else. 
   }
 }

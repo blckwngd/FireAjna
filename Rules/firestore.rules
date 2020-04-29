@@ -103,10 +103,12 @@ service cloud.firestore {
       && data.l is latlng;
     }
     function is____Message(data, prev) {
-      return data.keys().hasAll(['sender', 'type', 'parameters'])
-      && data.size() >= 3 && data.size() <= 5
+      return data.size() >= 0 && data.size() <= 5
       && data.keys().hasOnly(['sender', 'sendingObject', 'receivingObject', 'type', 'parameters'])
-      && data.sender is string
+      && (
+        !data.keys().hasAny(['sender'])
+        || data.sender is string
+      )
       && (
         !data.keys().hasAny(['sendingObject'])
         || data.sendingObject is string
@@ -115,8 +117,14 @@ service cloud.firestore {
         !data.keys().hasAny(['receivingObject'])
         || data.receivingObject is string
       )
-      && data.type is string
-      && true;
+      && (
+        !data.keys().hasAny(['type'])
+        || data.type is string
+      )
+      && (
+        !data.keys().hasAny(['parameters'])
+        || true
+      );
     }
     function is____User(data, prev) {
       return data.keys().hasAll(['firstName', 'lastName'])
@@ -185,15 +193,15 @@ service cloud.firestore {
       }
     }
     match /users/{userId} {
-      function is______PathType(data, prev) {
-        return (!(prev!=null) && is____User(data, null) || prev!=null && is____User(data, prev));
-      }
-      allow create, read, get, list, delete: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && ((request.auth.id == userId));
+      allow create, read, get, list, delete: if true;
       match /inbox/{message} {
         function is______PathType(data, prev) {
           return (!(prev!=null) && is____Message(data, null) || prev!=null && is____Message(data, prev));
         }
-        allow create, read, get, list, delete: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data) || (request.auth.id == userId));
+        allow create, write: if (!(resource!=null && resource.data!=null) && is______PathType(request.resource.data, null) || resource!=null && resource.data!=null && is______PathType(request.resource.data, resource.data)) && (isSender(resource.data) || (request.auth.uid == userId));
+      }
+      match /inbox/{message} {
+        allow read, get, list, delete: if isSender(resource.data) || (request.auth.uid == userId);
       }
     }
   }

@@ -466,6 +466,8 @@ class AjnaObject {
     };
     // message is sent to the objects agent. if it doesn´t exist, send to its owner.
     var recipient = this.doc.data().agent || this.doc.data().owner;
+    console.log("sending message to " + recipient);
+    console.log(data);
     
     this.ajna.firestore.collection("users").doc( recipient ).collection('inbox').add( data ).then(() => {
       console.log("message sent successfully");
@@ -525,7 +527,6 @@ class AjnaObject {
    * If requested by 'drainQueue', all existing messages will be deleted from the inbox before starting the listener.
    */
   startMessageListener( drainQueue ) {
-    console.log("start listening for inbox items");
     drainQueue = (typeof drainQueue == "undefined") ? true : drainQueue;
     
     // drain the message queue if requested
@@ -534,7 +535,7 @@ class AjnaObject {
     if (drainQueue) {
       var busy = true;
       // get all documents in the users inbox, which were sent to the current object (this)
-      this.ajna.firestore.collection('users').doc( this.ajna.user.uid ).collection( 'inbox' ).where('receiving_object', '==', this.id).get()
+      this.ajna.firestore.collection('users').doc( this.ajna.user.uid ).collection( 'inbox' ).where('receivingObject', '==', this.id).get()
       .then(function(querySnapshot) {
             console.log("got message queue. draining it if necessary.");
             var batch = this.ajna.firestore.batch();
@@ -548,7 +549,7 @@ class AjnaObject {
     }
     
     // listen to the users inbox for messages, which were sent to the current object (this)
-    this.ajna.firestore.collection( 'users' ).doc( this.ajna.user.uid ).collection( 'inbox' ).where('receiving_object', '==', this.id).onSnapshot(
+    this.ajna.firestore.collection( 'users' ).doc( this.ajna.user.uid ).collection( 'inbox' ).where('receivingObject', '==', this.id).onSnapshot(
       function(querySnapshot) {
         querySnapshot.forEach( function(doc) {
           // only call handler when it exists, an when the delete batch is finished
