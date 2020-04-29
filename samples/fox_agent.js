@@ -49,12 +49,15 @@ function startDemoAgent( ) {
   // listen for messages sent to the agent
   demoObject.startMessageListener( true );
   
-  demoObject.on('message_received', ( id, msg ) => {
+  demoObject.on('message_received',( id, msg ) => {
     console.log( msg );
     var on = (msg.parameters == "true");
     switch (msg.type) {
       case "streicheln":
         console.log("streicheln: " + msg.parameters);
+        // reply to the petting
+        var reply = (msg.parameters == 'true') ? "awwwwww :3" : "grrrrrrr >.<";
+        ajna.sendMessage( msg.sender, 'message', reply, this.id )
         break;
       case "stehen":
         demoObject.setAnimation( anims.idle );

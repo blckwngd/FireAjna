@@ -82,8 +82,8 @@
           var isAnonymous = user.isAnonymous;
           var uid = user.uid;
           var providerData = user.providerData;
+          ajna.startMessageListener();
           loginDone();
-          // ...
         } else {
           console.log("user is signed out");
           $('#loginButton').show();
@@ -124,6 +124,14 @@
         removeMapMarker(obj);
       });
       
+      ajna.on('message_received', (id, msg) => {
+        console.log("received a message. yayy.");
+        console.log(msg);
+        var txt = `${msg.sender} says: ${msg.parameters}`;
+        alert(txt);
+        ajna.consumeMessage(id);
+      });
+      
       var initDone = false;
       window.onload = function() {
         if (initDone)
@@ -154,6 +162,7 @@
           var id = objectTable.row( this ).id();
           markers[id].setAnimation(null);
         } );
+        
         initDone = true;
       }
       

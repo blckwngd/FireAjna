@@ -16,7 +16,8 @@ class AjnaConnector {
       object_entered: false,
       object_updated: false,
       object_left: false,
-      heightmap_updated: false
+      heightmap_updated: false,
+      message_received: false
     }
     
     this.objects = [];
@@ -385,6 +386,77 @@ class AjnaConnector {
     console.log(`elevation=${ele}`);
     return ele;
   }
+  
+  
+  /**
+   * Listens for messages which were sent to the user.
+   * If requested by 'drainQueue', all existing messages will be deleted from the inbox before starting the listener.
+   */
+  startMessageListener( msgType, drainQueue ) {
+    
+    msgType = (typeof msgType == "undefined") ? "message" : msgType;
+    drainQueue = (typeof drainQueue == "undefined") ? true : drainQueue;
+    
+    // drain the message queue if requested
+    var busy = false;
+    var numDeleted = 0;
+    if (drainQueue) {
+      busy = true;
+      console.log("user: " + this.user.uid);
+      // get all documents in the users inbox, which were sent to the current object (this)
+      this.firestore.collection('users').doc( this.user.uid ).collection( 'inbox' ).where('type', '==', msgType).get()
+      .then(function(querySnapshot) {
+            console.log("got message queue. draining it if necessary.");
+            var batch = this.firestore.batch();
+            querySnapshot.forEach(function(doc) { numDeleted++; batch.delete(doc.ref); });
+            batch.commit().catch(function(e) { console.log(e); });
+      }.bind(this)).then(function() {
+          if (numDeleted > 0)
+            console.log(`drained ${numDeleted} messages from the queue`);
+          busy = false;
+      });
+    }
+    // listen to the users inbox for messages
+    this.firestore.collection( 'users' ).doc( this.user.uid ).collection( 'inbox' ).where('type', '==', msgType).onSnapshot(
+      function(querySnapshot) {
+        querySnapshot.forEach( function(doc) {
+          // only call handler when it exists, an when the delete batch is finished
+          if (!busy && this.handler.message_received) {
+            this.handler.message_received( doc.id, doc.data() )
+          }
+        }.bind(this));
+      }.bind(this), (err) => {
+        console.log( 'Encountered error: ', err ); 
+      }
+    );
+  }
+  
+  sendMessage( recipient, type, message, sendingObject, receivingObject ) {
+    if (typeof message == "undefined") message = "undefined";
+    var data = {
+      type: type,
+      parameters: message,
+      sender: this.user.uid
+    };
+    if (typeof sendingObject != "undefined") data.sendingObject = sendingObject;
+    if (typeof receivingObject != "undefined") data.receivingObject = receivingObject;
+    
+    this.firestore.collection("users").doc( recipient ).collection('inbox').add( data ).then(() => {
+      console.log("message sent successfully");
+    }, (error) => {
+      console.log("error: ", error);
+    });
+  }
+  
+  
+  consumeMessage( id ) {
+    this.firestore.collection( 'users' ).doc( this.user.uid ).collection( 'inbox' ).doc( id ).delete().then(
+      function() {
+        // message has been deleted
+        console.log("message consumed");
+      }
+    );
+  }
 
 }
 
@@ -533,7 +605,7 @@ class AjnaObject {
     var busy = false;
     var numDeleted = 0;
     if (drainQueue) {
-      var busy = true;
+      busy = true;
       // get all documents in the users inbox, which were sent to the current object (this)
       this.ajna.firestore.collection('users').doc( this.ajna.user.uid ).collection( 'inbox' ).where('receivingObject', '==', this.id).get()
       .then(function(querySnapshot) {
@@ -564,12 +636,7 @@ class AjnaObject {
   }
   
   consumeMessage( id ) {
-    this.ajna.firestore.collection( 'users' ).doc( this.ajna.user.uid ).collection( 'inbox' ).doc( id ).delete().then(
-      function() {
-        // message has been deleted
-        console.log("message consumed");
-      }
-    );
+    this.ajna.consumeMessage(id);
   }
   
   stopMessageListener( ) {
