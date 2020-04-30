@@ -271,6 +271,27 @@
         }
       }
       
+      function quickOpen() {
+        // activate closes object
+        var cam = document.querySelector("a-camera");
+        var camPos = cam.object3D.position;
+        var objects = document.querySelector("ajna-object");
+        console.log("cam: ", cam);
+        console.log("camPos: ", camPos);
+        console.log("objects:");
+        for (var id in ajna.objects) {
+          var o = ajna.getObject(id);
+          var data = o.doc.data();
+          if (o.entity != "undefined") {
+            var pos = o.entity.object3D.position;
+            var distance = camPos.distanceTo(pos);
+            console.log(data.name + ": dst=" + distance + "m");
+            //var posFromOrigin = o.entity.object3D.position.subVectors(camPos);
+            //console.log(posFromOrigin);
+          }
+        }
+      }
+      
       // AFRAME-AR MARKERS
       
       window.addEventListener('camera-init', (data) => {
@@ -344,12 +365,22 @@
       <!-- define a camera inside the <a-marker-camera> -->
       <a-camera gps-camera rotation-reader>
         <!--<a-cursor></a-cursor>-->
-        <a-entity cursor="fuse: true; fuseTimeout: 1000"
+        <a-entity 
+          animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.1 0.1 0.1; to: 1 1 1"
+          animation__fusing="property: scale; startEvents: fusing; easing: easeInCubic; dur: 1500; from: 1 1 1; to: 0.1 0.1 0.1"
+          animation__mouseleave="property: scale; startEvents: mouseleave; easing: easeInCubic; dur: 500; to: 1 1 1"
+          cursor="fuse: true; fuseTimeout: 1000"
           position="0 0 -1"
           geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
           material="color: red; shader: flat">
         </a-entity>
       </a-camera>
+      
+
+      
+    <div style="position:absolute; bottom: 20px; left: 50%; z-index: 10000;">
+      <button id="openButton" title="quick open" onclick="quickOpen()" class="button large icon-weblit-map" style="padding:2px;font-size:40pt;"></button>
+    </div>
             
     </a-scene>
   </body>
