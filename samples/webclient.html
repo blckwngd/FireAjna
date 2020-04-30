@@ -145,6 +145,8 @@
         
         // setup data table for objects
         objectTable = $('#table_objects').DataTable({
+          paging: false,
+          searching: false,
           columns: [
             { title: "name" },
             { title: "description" },
