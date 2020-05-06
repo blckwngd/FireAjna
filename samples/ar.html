@@ -284,11 +284,20 @@
         }
       }
       
-      function quickOpen(param) {
+      function quickAction(param) {
         // activate closest object
         var obj = blurryGetObject();
         if (obj) {
           obj.executeAction("quickAction", param);
+        }          
+      }
+      
+      function quickOpen() {
+        // activate closest object
+        var obj = blurryGetObject();
+        if (obj) {
+          populatePopup(obj.id);
+          $('#objectModal').show();
         }          
       }
       
@@ -405,8 +414,10 @@
       
 
       
-    <div style="position:absolute; bottom: 20px; left: 50%; z-index: 10000;">
-      <button id="openButton" title="quick open" onclick="quickOpen('1')" class="button large icon-weblit-map" style="padding:2px;font-size:40pt;"></button>
+    <div style="position:absolute; bottom: 20px; left: 50%; z-index: 10000; margin-left: -80px;">
+      <button id="openButton" title="quick open" onclick="quickOpen()" class="button large icon-weblit-map" style="padding:2px;font-size:40pt;"></button>
+      <button id="openButton" title="quick action #1" onclick="quickAction('1')" class="button large" style="padding:2px;font-size:40pt;width:56px;">1</button>
+      <button id="openButton" title="quick action #2" onclick="quickAction('2')" class="button large" style="padding:2px;font-size:40pt;width:56px;">2</button>
     </div>
             
     </a-scene>
