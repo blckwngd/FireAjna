@@ -65,6 +65,10 @@ function startDemoAgent( ) {
         console.log("publishing to buerolicht: " + msg.parameters);
         client.publish('buerolicht', msg.parameters);
         break;
+      case "quickAction":
+        console.log("publishing to buerolicht: quickAction #" + msg.parameters);
+        client.publish('buerolicht', (msg.parameters=="1") ? "true" : "false");
+        break;
       default:
         console.log("unknown action: " + msg.type);
     }

@@ -271,25 +271,39 @@
         }
       }
       
-      function quickOpen() {
-        // activate closes object
+      function quickOpen(param) {
+        // activate closest object
+        var obj = blurryGetObject();
+        if (obj) {
+          obj.executeAction("quickAction", param);
+        }          
+      }
+      
+      function blurryGetObject() {
+        // get object which is closest to be focused by the camera
         var cam = document.querySelector("a-camera");
-        var camPos = cam.object3D.position;
         var objects = document.querySelector("ajna-object");
-        console.log("cam: ", cam);
-        console.log("camPos: ", camPos);
-        console.log("objects:");
+        var camDir = new THREE.Vector3();
+        cam.object3D.getWorldDirection(camDir);
+        var vec = new THREE.Vector3();
+        var angle = 0;
+        var winner = null;
+        var winnerAngle = Math.PI;
         for (var id in ajna.objects) {
           var o = ajna.getObject(id);
           var data = o.doc.data();
           if (o.entity != "undefined") {
-            var pos = o.entity.object3D.position;
-            var distance = camPos.distanceTo(pos);
-            console.log(data.name + ": dst=" + distance + "m");
-            //var posFromOrigin = o.entity.object3D.position.subVectors(camPos);
-            //console.log(posFromOrigin);
+            vec.subVectors(o.entity.object3D.position, cam.object3D.position);
+            var angle = Math.abs(vec.angleTo(camDir));
+            if (angle > (Math.PI/2))
+              angle = Math.abs(angle - Math.PI);
+            if (angle < winnerAngle) {
+              winner = o;
+              winnerAngle = angle;
+            }
           }
         }
+        return winner;
       }
       
       // AFRAME-AR MARKERS
@@ -379,7 +393,7 @@
 
       
     <div style="position:absolute; bottom: 20px; left: 50%; z-index: 10000;">
-      <button id="openButton" title="quick open" onclick="quickOpen()" class="button large icon-weblit-map" style="padding:2px;font-size:40pt;"></button>
+      <button id="openButton" title="quick open" onclick="quickOpen('1')" class="button large icon-weblit-map" style="padding:2px;font-size:40pt;"></button>
     </div>
             
     </a-scene>
