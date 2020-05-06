@@ -49,7 +49,7 @@ function startDemoAgent( ) {
   // listen for messages sent to the agent
   demoObject.startMessageListener( true );
   
-  demoObject.on('message_received',( id, msg ) => {
+  demoObject.on('message_received', function( id, msg ) {
     console.log( msg );
     var on = (msg.parameters == "true");
     switch (msg.type) {
@@ -75,6 +75,6 @@ function startDemoAgent( ) {
     }
     
     demoObject.consumeMessage( id );
-  });
+  }.bind(this));
   
 }
