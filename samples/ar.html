@@ -56,6 +56,7 @@
         if (user) {
           // User is signed in.
           console.log(user.email + " logged in");
+          ajna.startMessageListener();
           var displayName = user.displayName;
           var email = user.email;
           var emailVerified = user.emailVerified;
@@ -90,6 +91,18 @@
       
       ajna.on('object_left', (obj) => {
         console.log(obj.id + " has left the building!");
+      });
+      
+      ajna.on('message_received', (id, msg) => {
+        console.log(msg);
+        var sender = msg.sender; 
+        if (typeof msg.sendingObject != "undefined") {
+          var d = ajna.getObject(msg.sendingObject).doc.data();
+          sender = d.name;
+        }
+        var txt = `${sender}: ${msg.parameters}`;
+        alert(txt);
+        ajna.consumeMessage(id);
       });
       
       function openLoginWindow() {

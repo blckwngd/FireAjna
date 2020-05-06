@@ -58,7 +58,7 @@ function startDemoAgent( ) {
         console.log("streicheln: " + msg.parameters);
         // reply to the petting
         var reply = (msg.parameters in ['1','true']) ? "awwwwww :3" : "grrrrrrr >.<";
-        ajna.sendMessage( msg.sender, 'message', reply, this.id )
+        ajna.sendMessage( msg.sender, 'message', reply, demoObjectId )
         break;
       case "stehen":
         demoObject.setAnimation( anims.idle );
