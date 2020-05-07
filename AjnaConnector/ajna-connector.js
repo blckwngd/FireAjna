@@ -27,6 +27,7 @@ class AjnaConnector {
       radius: null
     };
     this.heightMap = false;
+    this.lastTick = Date.now();
     
     // Initialize the Firebase SDK
     firebase.initializeApp( firebaseConfig );
@@ -126,6 +127,16 @@ class AjnaConnector {
       this.handler['object_left']( this.objects[id] );
     }
     delete(this.objects[id]);
+  }
+  
+  tick() {
+    var ts = Date.now();
+    var delta = ts - this.lastTick;
+    this.lastTick = ts;
+    
+    for(var i in this.objects) {
+      this.objects[i].tick(delta);
+    }
   }
   
   cleanup() {
@@ -468,7 +479,9 @@ class AjnaObject {
       changed: false,
       action_triggered: false,
       message_received: false,
-      move: false
+      move: false,
+      before_tick: false,
+      after_tick: false
     }
     
     this.ajna = ajna;
@@ -476,8 +489,8 @@ class AjnaObject {
     this.doc = doc || false;
     this.geocollection = ajna.geocollection;
     this.height_above_sealevel = undefined;
+    this.localCoordinates = false;
     
-    //this.startObjectListener( );
   }
   
   /**
@@ -498,24 +511,28 @@ class AjnaObject {
     this.handler[event] = false;
   }
   
+  
+  partialUpdate( data ) {
+    this.ajna.setObject( 
+      this.id,
+      data,
+      () => { /* SUCCESS */ },
+      (err) => { console.log( "object update unsuccessfull", err ); }
+    );
+  }
+  
   /**
    * moves the object to a specific location, given by latitude and longitude
    **/
   moveTo( location ) {
-    var data = { coordinates: this.ajna.GeoPoint( location.lat, location.lon ) };
-    this.ajna.setObject( 
-      this.id,
-      data,
-      () => { console.log( "move successfull" ); },
-      (err) => { console.log( "move unsuccessfull", err ); }
-    );
+    this.localCoordinates = this.ajna.GeoPoint( location.lat, location.lon );
   }
   
   /**
    * moves the object by a given value
    **/
   moveBy( d, bearing ) {
-    var coordinates = this.doc.data().coordinates;
+    var coordinates = this.localCoordinates || this.doc.data().coordinates;
     var point = turf.point([coordinates._long, coordinates._lat]);
     var new_pos = transformTranslate( point, d/1000, bearing ); // translate by kilometers
     this.moveTo( {lat: new_pos.geometry.coordinates[1], lon: new_pos.geometry.coordinates[0]} );
@@ -524,6 +541,53 @@ class AjnaObject {
   moveForward( d ) {
     var my_bearing = (typeof this.doc.bearing == "undefined") ? 0 : this.doc.bearing;
     this.moveBy( d, my_bearing );
+  }
+  
+  startMoving( velocity, bearing ) {
+    var my_bearing = (typeof bearing == "undefined") ? bearing : (this.doc.bearing || 0);
+    if (typeof velocity != "number" || velocity <= 0) {
+      throw "INVELID SPEED";
+      return;
+    }
+    this.partialUpdate({
+      "bearing": my_bearing,
+      "velocity": velocity
+    });
+  }
+  
+  stopMoving( ) {
+    this.partialUpdate({
+      "velocity": 0
+    });
+  }
+  
+  pushLocalChanges() {
+    this.partialUpdate({ 
+      coordinates: localCoordinates 
+    });
+    this.lastPush = Date.now();
+  }
+  
+  /** 
+    update object at each frame; changes will be local by default.
+    used i.e. to interpolate obejcts positions when moving.
+  */
+  tick(delta) {
+    if (this.handler.before_tick)
+      this.handler.before_tick(delta);
+    
+    var data = this.doc.data();
+    if (typeof data.velocity != "undefined" && data.velocity > 0) {
+      var dst = data.velocity * (delta / 1000);
+      this.moveForward( dst );
+      if(!this.lastPush || (Date.now() - this.lastPush > 5000)) {
+        // LATER: this.pushLocalChanges();
+      }
+      if (this.ajna.handler.object_updated)
+        this.ajna.handler.object_updated(this);
+    }
+    if (this.handler.after_tick)
+      this.handler.after_tick(delta);
   }
   
   /**
@@ -569,8 +633,8 @@ class AjnaObject {
     );
   }
   
-  updateData( data ) {
-    this.doc = data;
+  updateData( doc ) {
+    this.doc = doc;
   }
   
   delete( callback ) {

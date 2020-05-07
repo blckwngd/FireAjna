@@ -22,6 +22,8 @@ type AjnaObjectData = {
   name: string,
   description?: string,
   coordinates: latlng,
+  bearing?: float,
+  velocity?: float,
   altitude?: float,
   altitudeClamp?: "s" | "g", // s=sealevel, g=ground
   model?: Model,

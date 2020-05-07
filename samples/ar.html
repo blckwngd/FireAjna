@@ -85,7 +85,7 @@
       });
 
       ajna.on('object_updated', (obj) => {
-        // console.log("relative position: ", ajna.getOffsetFromObserved(data.coordinates));
+        var d = obj.doc.data();
         updateSceneForObject(obj);
       });
       
@@ -127,6 +127,8 @@
         });
       }
       
+      var initDone = false;
+      setInterval(function() { if(initDone) { ajna.tick(); } }, 100);
       window.onload = function() {        
         // init
         $('#objectModal').hide();
@@ -135,7 +137,7 @@
         //ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
         loginModal = new Foundation.Reveal($('#loginModal'));
         $('#logoutButton').hide();
-        
+        initDone = true;
       }
       
       function camMoved() {
@@ -186,7 +188,9 @@
                 
         updateWithData: function (data) {
           // <a-entity ...> // Wrapper
-          this.el.setAttribute('gps-entity-place', {'latitude': data.coordinates.latitude, 'longitude': data.coordinates.longitude});
+          var o = ajna.getObject( this.data );
+          var coords = o.localCoordinates || data.coordinates;
+          this.el.setAttribute('gps-entity-place', {'latitude': coords.latitude, 'longitude': coords.longitude});
           
           var has3DModel = ((typeof data.model != "undefined") && (typeof data.model.url != "undefined"));
           
