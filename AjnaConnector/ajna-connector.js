@@ -27,6 +27,10 @@ class AjnaConnector {
       radius: null
     };
     this.heightMap = false;
+    // DEFAULT = load elevation data from elevationapi.net
+    // COMPATIBLE = use cors proxy for requests
+    // NONE = don´t use elevation data
+    this.heightMapMode = "NONE"; 
     this.lastTick = Date.now();
     
     // Initialize the Firebase SDK
@@ -186,7 +190,7 @@ class AjnaConnector {
       var dst = 1000 * turf.distance(turf.point([location._long, location._lat]), turf.point([this.heightMap.center_long, this.heightMap.center_lat]));
       loadRequired = (dst >= this.observed.radius);
     }
-    if (loadRequired) {
+    if ((this.heightMapMode != "NONE") && loadRequired) {
       this.loadHeightmap( location );
     }
     
@@ -298,6 +302,8 @@ class AjnaConnector {
    * requests elevation data from mapbox and returns it as heightmap, which can be used by the client
    */
   loadHeightmap( location ) {
+    if (this.heightMapMode == "NONE")
+      return;
     // calc bounding box around current position
     var center = turf.point([location._long, location._lat]);
     var distance = this.observed.radius * 2; // heightmap is bigger than observation radius, since we want to move without reloading
@@ -308,13 +314,13 @@ class AjnaConnector {
     var from_long = Math.min(nw.geometry.coordinates[0], se.geometry.coordinates[0]);
     var to_long   = Math.max(nw.geometry.coordinates[0], se.geometry.coordinates[0]);
     var url = `https://api.elevationapi.com/api/Model/3d/bbox/${from_long},${to_long},${from_lat},${to_lat}`;
-    if (DEBUG) url = "https://cors-anywhere.herokuapp.com/" + url;
+    if (this.heightMapMode == "DEBUG") url = "https://cors-anywhere.herokuapp.com/" + url;
     axios.get(url)
       .then(function success(res) {
         if (res.data.success) {
           // request heightmap
           var url_hm = `https://api.elevationapi.com${res.data.assetInfo.heightMap.filePath}`;
-          if (DEBUG) url_hm = "https://cors-anywhere.herokuapp.com/" + url_hm;
+          if (this.heightMapMode == "DEBUG") url_hm = "https://cors-anywhere.herokuapp.com/" + url_hm;
           var hm_width = res.data.assetInfo.heightMap.width;
           var hm_height = res.data.assetInfo.heightMap.height;
           var hm_minElevation = res.data.assetInfo.minElevation;
@@ -513,6 +519,7 @@ class AjnaObject {
   
   
   partialUpdate( data ) {
+    console.log("partial update", data);
     this.ajna.setObject( 
       this.id,
       data,
@@ -528,25 +535,26 @@ class AjnaObject {
     this.localCoordinates = this.ajna.GeoPoint( location.lat, location.lon );
   }
   
+  
   /**
    * moves the object by a given value
    **/
   moveBy( d, bearing ) {
-    var coordinates = this.localCoordinates || this.doc.data().coordinates;
+    var coordinates = this.getLocalCoordinates();
     var point = turf.point([coordinates._long, coordinates._lat]);
     var new_pos = transformTranslate( point, d/1000, bearing ); // translate by kilometers
     this.moveTo( {lat: new_pos.geometry.coordinates[1], lon: new_pos.geometry.coordinates[0]} );
   }
   
   moveForward( d ) {
-    var my_bearing = (typeof this.doc.bearing == "undefined") ? 0 : this.doc.bearing;
+    var my_bearing = (typeof this.doc.data().bearing == "undefined") ? 0 : this.doc.data().bearing;
     this.moveBy( d, my_bearing );
   }
   
   startMoving( velocity, bearing ) {
-    var my_bearing = (typeof bearing == "undefined") ? bearing : (this.doc.bearing || 0);
-    if (typeof velocity != "number" || velocity <= 0) {
-      throw "INVELID SPEED";
+    var my_bearing = (typeof bearing != "undefined") ? bearing : (this.doc.data().bearing || 0);
+    if (typeof velocity != "number" || velocity < 0) {
+      throw "INVALID SPEED";
       return;
     }
     this.partialUpdate({
@@ -555,15 +563,34 @@ class AjnaObject {
     });
   }
   
+  getLocalCoordinates() {
+    return this.localCoordinates || this.doc.data().coordinates;
+  }
+  
+  startMovingTowards( velocity, target ) {
+    var coordinates = this.getLocalCoordinates();
+    var pointMe = turf.point([coordinates._long, coordinates._lat]);
+    var pointTarget = turf.point([target._long, target._lat]);
+    var bearing = turf.bearing(pointMe, pointTarget);
+    this.startMoving(velocity, bearing);
+  }
+  
   stopMoving( ) {
     this.partialUpdate({
       "velocity": 0
     });
   }
   
+  getDistanceTo( target ) {
+    var p = this.getLocalCoordinates();
+    var p1 = turf.point([p._long, p._lat]);
+    var p2 = turf.point([target._long, target._lat]);
+    return turf.distance(p1, p2) * 1000;
+  }
+  
   pushLocalChanges() {
     this.partialUpdate({ 
-      coordinates: localCoordinates 
+      coordinates: this.getLocalCoordinates()
     });
     this.lastPush = Date.now();
   }
@@ -572,7 +599,7 @@ class AjnaObject {
     update object at each frame; changes will be local by default.
     used i.e. to interpolate obejcts positions when moving.
   */
-  tick(delta) {
+  tick( delta ) {
     if (this.handler.before_tick)
       this.handler.before_tick(delta);
     
@@ -602,8 +629,6 @@ class AjnaObject {
     };
     // message is sent to the objects agent. if it doesn´t exist, send to its owner.
     var recipient = this.doc.data().agent || this.doc.data().owner;
-    console.log("sending message to " + recipient);
-    console.log(data);
     
     this.ajna.firestore.collection("users").doc( recipient ).collection('inbox').add( data ).then(() => {
       console.log("message sent successfully");
@@ -617,17 +642,15 @@ class AjnaObject {
   }
   
   setAnimation( name ) {
-    console.log(`setAnimation(${name})`);
     if ( typeof this.doc.data().model == "undefined" ) {
       console.log("no model to animate");
       return false;
     }
-    console.log("setting animation...");
     this.ajna.setObject (
       this.id,
       { "model.animation": name},
       // onSuccess
-      () => { console.log("animation set :-)"); },
+      () => { },
       // onError
       (err) => { console.log("animation error :-(", err); },
     );
@@ -676,7 +699,7 @@ class AjnaObject {
             console.log("got message queue. draining it if necessary.");
             var batch = this.ajna.firestore.batch();
             querySnapshot.forEach(function(doc) { numDeleted++; batch.delete(doc.ref); });
-            batch.commit().catch(function(e) { console.log("EXCEPTION 3"); console.log(e); });
+            batch.commit().catch(function(e) { console.log(e); });
       }.bind(this)).then(function() {
           if (numDeleted > 0)
             console.log(`drained ${numDeleted} messages from the queue`);

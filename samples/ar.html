@@ -33,7 +33,6 @@
     <script src="https://cdn.jsdelivr.net/npm/foundation-sites@6.6.1/dist/js/foundation.min.js"></script>
     
     <script>
-      const DEBUG = true;
       var selected = false;
       
       var firebaseConfig = {
@@ -47,7 +46,8 @@
       };
 
       // Initialize AjnaConnector
-      const ajna = new AjnaConnector( firebaseConfig );
+      var ajna = new AjnaConnector( firebaseConfig );
+      ajna.heightmapMode = "NONE";
       var authUI = false;
       
       ajna.on('auth_state_changed', function(user) {
@@ -128,7 +128,7 @@
       }
       
       var initDone = false;
-      setInterval(function() { if(initDone) { ajna.tick(); } }, 100);
+      setInterval(function() { if(initDone) { ajna.tick(); } }, 50);
       window.onload = function() {        
         // init
         $('#objectModal').hide();
@@ -141,10 +141,8 @@
       }
       
       function camMoved() {
-        console.log("camMoved()");
         var cam = document.querySelector("a-camera");
         var coords = cam.components["gps-camera"].currentCoords;
-        console.log("CAM MOVED TO: ", coords);
         // set the new position as center for watching for ajna objects
         ajna.observe(ajna.GeoPoint(parseFloat(coords.latitude), parseFloat(coords.longitude)), 1000);
       }
@@ -223,6 +221,13 @@
           } else if (has3DModel && (typeof data.model.scale == "number")) {
             model.setAttribute('scale', data.model.scale + " " + data.model.scale + " " + data.model.scale);
           }
+          if (has3DModel && (typeof data.bearing != "undefined")) {
+            var b = 180 - ((data.bearing < 0) ? (data.bearing + 360) : data.bearing);
+            if (data.name == "Hausfuchs2")
+              console.log(data.name + " bearing=" + b + "deg / " + THREE.Math.degToRad(b) + "rad");
+            model.object3D.rotation.set(0, THREE.Math.degToRad(b), 0);
+          }
+          
           
           // <a-text> // floating name
           var txtName = this.el.querySelector('a-text');
