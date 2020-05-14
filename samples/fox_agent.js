@@ -129,8 +129,8 @@ function startDemoAgent( ) {
     var dst = demoObject.getDistanceTo(target);
     if (state != anims.idle) {
       console.log("tick done", ` (distance=${dst}m)`);
-      if (dst < 2) {
-        // close enough
+      if ((dst < 2) || (dst > 25)) {
+        // close enough, or mssed the target
         redecide();
       }
     }
