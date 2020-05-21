@@ -5,9 +5,9 @@
     <link rel="icon" type="image/vnd.microsoft.icon" href="../favicon.ico">
     
     <!-- AFRAME -->
-    <script src="https://aframe.io/releases/1.0.3/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@cd01cec35a01e03eb2d6a9272500a53de31d3828/dist/aframe-master.min.js"></script>
     <script src="https://unpkg.com/aframe-extras@3.3.0/dist/aframe-extras.min.js"></script>
-    <script src="https://raw.githack.com/jeromeetienne/AR.js/2.2.2/aframe/build/aframe-ar.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js">
     <script src="https://rawgit.com/blairmacintyre/aframe-look-at-billboard-component/master/dist/aframe-look-at-billboard-component.min.js"></script>
     <script src="https://unpkg.com/@editvr/aframe-dialog-popup-component@1.7.2/dist/aframe-dialog-popup-component.min.js"></script> 
     <script src="https://rawgit.com/caseyyee/aframe-ui-widgets/master/dist/aframe-ui-widgets.min.js"></script>
@@ -223,8 +223,6 @@
           }
           if (has3DModel && (typeof data.bearing != "undefined")) {
             var b = 180 - ((data.bearing < 0) ? (data.bearing + 360) : data.bearing);
-            if (data.name == "Hausfuchs2")
-              console.log(data.name + " bearing=" + b + "deg / " + THREE.Math.degToRad(b) + "rad");
             model.object3D.rotation.set(0, THREE.Math.degToRad(b), 0);
           }
           
@@ -346,6 +344,10 @@
       window.addEventListener('camera-error', (error) => {
           console.log('camera-error', error);
       })
+      
+      window.addEventListener('markerFound', (error) => {
+          alert('markerFound on window');
+      })
 
       AFRAME.registerComponent('registerevents', {
         init: function () {
@@ -353,13 +355,13 @@
 
           marker.addEventListener('markerFound', function() {
             var markerId = marker.id;
-            console.log('markerFound', markerId);
+            alert('markerFound', markerId);
             // TODO: Add your own code here to react to the marker being found.
           });
 
           marker.addEventListener('markerLost', function() {
             var markerId = marker.id;
-            console.log('markerLost', markerId);
+            alert('markerLost', markerId);
             // TODO: Add your own code here to react to the marker being lost.
           });
         }
@@ -397,11 +399,18 @@
     </div>
 	
     <!-- AFRAME SCENE -->
-    <a-scene device-orientation-permission-ui="enabled: true" artoolkit embedded arjs='sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; sourceWidth:1280; sourceHeight:960; displayWidth: 1280; displayHeight: 960;'>
+    <a-scene
+      vr-mode-ui="enabled: false;"
+      renderer="logarithmicDepthBuffer: true;"
+      embedded
+      arjs="trackingMethod: best; sourceType: webcam;debugUIEnabled: false;"
+    >
+    <!--<a-scene device-orientation-permission-ui="enabled: true" artoolkit embedded arjs='sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; sourceWidth:1280; sourceHeight:960; displayWidth: 1280; displayHeight: 960;'>-->
       <!-- define your scene as usual -->
       
-      <a-marker type="barcode" value="42" emitevents="true" registerevents>
-        <a-box color="blue" size="0.1 0.1 0.1" position="0 0.5 0">
+      <!--<a-marker type="barcode" value="42" emitevents="true" registerevents>-->
+      <a-marker preset="hiro" emitevents="true" registerevents>
+        <a-box color="blue" size="0.1 0.1 0.1" position="0 0 0">
           <a-text billboard value="Hello, World!" color="#ff0000" position="0 0.1 0" align="center"></a-text>
           <!-- <a-text value="Hello, World!" color="#ff0000" position="0 1 0" align="center" rotation="0 180 0"></a-text> -->
         </a-box>

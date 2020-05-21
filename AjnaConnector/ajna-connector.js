@@ -89,7 +89,6 @@ class AjnaConnector {
   
   // handle an object received from geofirestore
   _handleObject( doc, tag ) {
-    console.log("_handleObject " + doc.data().name);
     if (!this.objects[doc.id]) {
       // retrieved a new (previously unknown) object
       this.objects[doc.id] = new AjnaObject(doc, this);
@@ -97,7 +96,7 @@ class AjnaConnector {
         this.handler.object_retrieved( this.objects[doc.id] );
     } else {
       // received an update for a known object
-      this.objects[doc.id].doc = doc;
+      this.objects[doc.id].updateData(doc);
       if (this.handler.object_updated) {
         this.handler.object_updated( this.objects[doc.id] );
       }
@@ -657,6 +656,7 @@ class AjnaObject {
   }
   
   updateData( doc ) {
+    this.localCoordinates = doc.data().coordinates;
     this.doc = doc;
   }
   
