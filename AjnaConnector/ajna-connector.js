@@ -89,6 +89,7 @@ class AjnaConnector {
   
   // handle an object received from geofirestore
   _handleObject( doc, tag ) {
+    console.log("_handleObject " + doc.data().name);
     if (!this.objects[doc.id]) {
       // retrieved a new (previously unknown) object
       this.objects[doc.id] = new AjnaObject(doc, this);
@@ -237,8 +238,6 @@ class AjnaConnector {
   
   // save an object to the database.
   setObject (id, data, onSuccess, onError) {
-    console.log("setObject(): DATA=");
-    console.log(data);
     this.geocollection.doc( id ).update( data ).then(function(docRef) {
       this.geocollection.doc( id ).get( ).then(function(docRef) {
         // update local copy of the object
@@ -519,7 +518,6 @@ class AjnaObject {
   
   
   partialUpdate( data ) {
-    console.log("partial update", data);
     this.ajna.setObject( 
       this.id,
       data,
@@ -548,6 +546,7 @@ class AjnaObject {
   
   moveForward( d ) {
     var my_bearing = (typeof this.doc.data().bearing == "undefined") ? 0 : this.doc.data().bearing;
+    //console.log(`moving ${d}m with bearing ${my_bearing}`);
     this.moveBy( d, my_bearing );
   }
   
@@ -557,7 +556,9 @@ class AjnaObject {
       throw "INVALID SPEED";
       return;
     }
+    console.log("startMoving: v=" + velocity);
     this.partialUpdate({
+      "coordinates": this.getLocalCoordinates(),
       "bearing": my_bearing,
       "velocity": velocity
     });
@@ -577,6 +578,7 @@ class AjnaObject {
   
   stopMoving( ) {
     this.partialUpdate({
+      "coordinates": this.getLocalCoordinates(),
       "velocity": 0
     });
   }
@@ -592,7 +594,6 @@ class AjnaObject {
     this.partialUpdate({ 
       coordinates: this.getLocalCoordinates()
     });
-    this.lastPush = Date.now();
   }
   
   /** 
@@ -604,12 +605,11 @@ class AjnaObject {
       this.handler.before_tick(delta);
     
     var data = this.doc.data();
-    if (typeof data.velocity != "undefined" && data.velocity > 0) {
+    if ((typeof data.velocity != "undefined") && (data.velocity > 0)) {
+      //console.log(`tick: velocity=${data.velocity} m/s`);
       var dst = data.velocity * (delta / 1000);
       this.moveForward( dst );
-      if(!this.lastPush || (Date.now() - this.lastPush > 5000)) {
-        // LATER: this.pushLocalChanges();
-      }
+      
       if (this.ajna.handler.object_updated)
         this.ajna.handler.object_updated(this);
     }

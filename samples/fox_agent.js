@@ -48,22 +48,27 @@ ajna.on('object_retrieved', (obj) => {
 var state = anims.idle;
 var speed = 0;
 var target = false;
+var lastDst = 0;
 
 function movement(anim) {
   if ( !target || (anim != anims.idle && state == anims.idle) ) {
     var bbox_width = Math.abs(bbox[2] - bbox[0]);
     var bbox_height = Math.abs(bbox[3] - bbox[1]);
-    target = {
-      _long: Math.min(bbox[2], bbox[0]) + bbox_width * Math.random(),
-      _lat: Math.min(bbox[3], bbox[1]) + bbox_height * Math.random()
-    };
+    do {
+      target = {
+        _long: Math.min(bbox[2], bbox[0]) + bbox_width * Math.random(),
+        _lat: Math.min(bbox[3], bbox[1]) + bbox_height * Math.random()
+      };
+      console.log("testing target with distance " + demoObject.getDistanceTo(target));
+    } while (demoObject.getDistanceTo(target) < 2.5)
   }
   switch( anim ) {
-    case anims.walk: speed = 0.8; break;
-    case anims.run: speed = 1.6; break;
+    case anims.walk: speed = 0.6; break;
+    case anims.run: speed = 1.2; break;
     default: speed = 0;
   }
   console.log("start moving towards ", target, " with animation " + anim + " (" + speed + "m/s)");
+  lastDst = 99999;
   demoObject.setAnimation( anim );
   if ( anim == anims.idle ) {
     demoObject.stopMoving();
@@ -75,11 +80,11 @@ function movement(anim) {
 
 function redecide() {
   var r = Math.random();
-  if (r < 0.5) {
+  if (r < 0.1) {
     // stay here for a while
     movement(anims.idle);
     setTimeout(function(){ redecide(); }, 5000);
-  } else if (r < 0.8) {
+  } else if (r < 0.7) {
     movement(anims.walk);
   } else {
     movement(anims.run);
@@ -128,13 +133,15 @@ function startDemoAgent( ) {
   demoObject.on('after_tick', function(delta) {
     var dst = demoObject.getDistanceTo(target);
     if (state != anims.idle) {
-      console.log("tick done", ` (distance=${dst}m)`);
-      if ((dst < 2) || (dst > 25)) {
-        // close enough, or mssed the target
+      console.log(`tick done. State=${state}. distance=${dst}m. speed=${demoObject.doc.data().velocity}m/s`);
+      if ((dst < 1) || (dst >= lastDst)) {
+        // close enough, or missed the target
         redecide();
       }
+      lastDst = dst;
     }
   });
   
   setInterval(function() { ajna.tick(); }, 1000);
+  setInterval(function() { demoObject.pushLocalChanges(); }, 5000);
 }

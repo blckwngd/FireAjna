@@ -132,6 +132,8 @@
         ajna.consumeMessage(id);
       });
       
+      setInterval(function() { if(initDone) { ajna.tick(); } }, 200);
+      
       var initDone = false;
       window.onload = function() {
         if (initDone)
@@ -379,7 +381,8 @@
       // update the map to represent a received object
       function updateMapMarker(obj) {
         var data = obj.doc.data();
-        var latLng = new google.maps.LatLng(data.coordinates._lat, data.coordinates._long);
+        var p = obj.getLocalCoordinates();
+        var latLng = new google.maps.LatLng(p._lat, p._long);
         var options = {
           position: latLng,
           map: map,
@@ -429,7 +432,8 @@
         if (ajna.checkPermission(data.p, 'w', data.owner)) {
           actions = '<a class="button icon-pencil" title="Edit" onclick="objEdit(\''+obj.id+'\')"></a> <a class="button icon-minus" title="Delete" onclick="objDelete(\'' + obj.id + '\')"></a>';
         }
-        var dst = (obj.doc.distance * 1000).toFixed(1);
+        //var dst = (obj.doc.distance * 1000).toFixed(1);
+        var dst = obj.getDistanceTo(ajna.observed.location).toFixed(1);
         var namelink = "<a href=\"javascript:objView(\'" + obj.id + "\')\">" + data.name + "</a>";
         
         var cols = [
