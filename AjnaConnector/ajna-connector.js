@@ -36,6 +36,8 @@ class AjnaConnector {
     // Initialize the Firebase SDK
     firebase.initializeApp( firebaseConfig );
     this.firestore = firebase.firestore();
+    this.firestore.enablePersistence()
+      .catch(function(err) { console.error(err); });
     
     // handle logon callback
     firebase.auth().onAuthStateChanged(( user ) => {
@@ -169,15 +171,24 @@ class AjnaConnector {
       
     // RULE: !isPermissioned(resource.data.d)
     this.q1 = this.geoquery.where('p', '==', null);
-    this.q1.onSnapshot((qS) => {this._snapshot_handler(qS, 1)}, (err) => { console.log( 'Encountered error: ', err ); });
+    this.q1.onSnapshot(
+      (qS) => {this._snapshot_handler(qS, 1)},
+      (err) => { console.log( 'Encountered error: ', err ); }
+    );
     // RULE: hasAnonymousPerm(resource.data.d, 'r')
     this.q2 = this.geoquery.where('p.a', 'array-contains', 'r');
-    this.q2.onSnapshot((qS) => {this._snapshot_handler(qS, 2)}, (err) => { console.log( 'Encountered error: ', err ); });
+    this.q2.onSnapshot(
+      (qS) => {this._snapshot_handler(qS, 2)},
+      (err) => { console.log( 'Encountered error: ', err ); }
+    );
 
     // RULE: isOwner()
     if (this.user && this.user.uid) {
       this.q3 = this.geoquery.where('owner', '==', this.user.uid);
-      this.q3.onSnapshot((qS) => {this._snapshot_handler(qS, 3)}, (err) => { console.log( 'Encountered error: ', err ); });
+      this.q3.onSnapshot(
+        (qS) => {this._snapshot_handler(qS, 3)},
+        (err) => { console.log( 'Encountered error: ', err ); }
+      );
     }
     // RULE: hasPublicPerm(resource.data.d, 'read');
 //    this.geoquery.where('permissions', '!=', null).where(onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
@@ -433,6 +444,7 @@ class AjnaConnector {
     }
     // listen to the users inbox for messages
     this.firestore.collection( 'users' ).doc( this.user.uid ).collection( 'inbox' ).where('type', '==', msgType).onSnapshot(
+      { includeMetadataChanges: true },
       function(querySnapshot) {
         querySnapshot.forEach( function(doc) {
           // only call handler when it exists, an when the delete batch is finished
@@ -709,6 +721,7 @@ class AjnaObject {
     
     // listen to the users inbox for messages, which were sent to the current object (this)
     this.ajna.firestore.collection( 'users' ).doc( this.ajna.user.uid ).collection( 'inbox' ).where('receivingObject', '==', this.id).onSnapshot(
+      { includeMetadataChanges: true },
       function(querySnapshot) {
         querySnapshot.forEach( function(doc) {
           // only call handler when it exists, an when the delete batch is finished
