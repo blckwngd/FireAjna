@@ -34,6 +34,7 @@
     
     <script>
       var selected = false;
+
       
       var firebaseConfig = {
         apiKey: "AIzaSyAnRCIFgGZwGGOmjZ7R5juJ4LD34rv86iE",
@@ -137,6 +138,7 @@
         //ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
         loginModal = new Foundation.Reveal($('#loginModal'));
         $('#logoutButton').hide();
+    
         initDone = true;
       }
       
@@ -157,7 +159,6 @@
         //var local_coords = ajna.getOffsetFromObserved(data.coordinates);
         var sceneEl = document.querySelector('a-scene');
         if (typeof o.entity == "undefined") {
-          console.log("CREATING NEW ENTITY");
           o.entity = document.createElement('a-entity');
           o.entity.setAttribute("ajna-object", obj.id);
           sceneEl.append(o.entity);
@@ -211,6 +212,7 @@
               populatePopup(clicked_id);
               $('#objectModal').show();
             });
+            model.setAttribute('shadow', {cast: true});
             this.el.append(model);
           }
           if (has3DModel && (typeof data.model.animation != "undefined")) {
@@ -399,13 +401,13 @@
     </div>
 	
     <!-- AFRAME SCENE -->
-    <a-scene
+    <!--<a-scene
       vr-mode-ui="enabled: false;"
       renderer="logarithmicDepthBuffer: true;"
       embedded
       arjs='sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3;'
-    >
-    <!--<a-scene device-orientation-permission-ui="enabled: true" artoolkit embedded arjs='sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; sourceWidth:1280; sourceHeight:960; displayWidth: 1280; displayHeight: 960;'>-->
+    >-->
+    <a-scene shadow="type: pcfsoft" device-orientation-permission-ui="enabled: true" artoolkit embedded arjs='sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; sourceWidth:1280; sourceHeight:960; displayWidth: 1280; displayHeight: 960;'>
       <!-- define your scene as usual -->
       
       <!--<a-marker type="barcode" value="42" emitevents="true" registerevents>-->
@@ -415,7 +417,7 @@
           <!-- <a-text value="Hello, World!" color="#ff0000" position="0 1 0" align="center" rotation="0 180 0"></a-text> -->
         </a-box>
       </a-marker>
-
+      
       <a-camera gps-camera rotation-reader>
         <!--<a-cursor></a-cursor>-->
         <a-entity 
@@ -429,7 +431,13 @@
         </a-entity>
       </a-camera>
       
-
+      <a-entity light="type: ambient; intensity: 0.5;"></a-entity>
+      <a-entity light="type: directional;
+               castShadow: true;
+               intensity: 0.8;
+               shadowCameraVisible: false;"
+        position="-20 50 1.5"></a-entity>
+      <a-circle id="ground" material="color: blue; opacity: 0.2" radius="100" rotation="-90 0 0" position="0 -0.5 0" shadow="receive: true"></a-circle>
       
     <div style="position:absolute; bottom: 20px; left: 50%; z-index: 10000; margin-left: -80px;">
       <button id="openButton" title="quick open" onclick="quickOpen()" class="button large icon-weblit-map" style="padding:2px;font-size:40pt;"></button>

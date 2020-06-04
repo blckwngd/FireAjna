@@ -45,7 +45,7 @@ class AjnaConnector {
         this.user = user;
         this.handler.auth_state_changed( user );
         if (this.observed.location) {
-          this.observe( this.observed.location, this.observed.radius );
+          this.observe( this.observed.location, this.observed.radius, true );
         }
       }
     });
@@ -105,7 +105,7 @@ class AjnaConnector {
     }
     if (tag && Array.isArray(this.objects[doc.id].tags)) this.objects[doc.id].tags.push( tag );
     
-    //console.log( doc.data().name + " updated!" );
+    // console.log( doc.data().name + " updated!" );
   }
   
   GeoPoint( latitude, longitude ) {
@@ -153,9 +153,21 @@ class AjnaConnector {
     }
   }
   
-  observe( location, radius ) {
+  observe( location, radius, force ) {
+    
+    var relocate = (force === true); // forced relocation
+    if (!this.observed.location)  // first loalization
+      relocate = true;
+    else if ( turf.distance(  // distance to previous observed is big enough
+          turf.point([location._long, location._lat]),
+          turf.point([this.observed.location._long, this.observed.location._lat])
+        ) > radius/4000 )
+      relocate = true;
+    if ( !relocate )
+      return;
     
     console.log("now observing", location);
+      
     
     this.observed.location = location;
     this.observed.radius = radius;
