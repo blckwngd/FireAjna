@@ -12,6 +12,14 @@
     <script src="https://unpkg.com/@editvr/aframe-dialog-popup-component@1.7.2/dist/aframe-dialog-popup-component.min.js"></script> 
     <script src="https://rawgit.com/caseyyee/aframe-ui-widgets/master/dist/aframe-ui-widgets.min.js"></script>
 
+    <!-- JS-URICO -->
+    <script type="text/javascript" src="js/vendor/polyfill.js"></script>
+    <script type="text/javascript" src="js/vendor/cv.js"></script> 
+    <script type="text/javascript" src="js/vendor/aruco.js"></script> 
+    <script type="text/javascript" src="js/vendor/svd.js"></script> 
+    <script type="text/javascript" src="js/vendor/posit.js"></script> 
+    <script type="text/javascript" src="js/markerDetect.js"></script> 
+    
     <!-- FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-auth.js"></script>
@@ -128,17 +136,27 @@
         });
       }
       
+      markersDetectedCallback = function(markers) {
+        console.log(markers);
+      }
+      
+      markerDetectedCallback = function(marker, pose) {
+        console.log(marker);
+        console.log(pose);
+      }
+      
       var initDone = false;
       setInterval(function() { if(initDone) { ajna.tick(); } }, 50);
       window.onload = function() {        
         // init
         $('#objectModal').hide();
-        // start signIn process
-        // Initialize the FirebaseUI Widget using Firebase.
-        //ui = new firebaseui.auth.AuthUI(ajna.firebase.auth());
         loginModal = new Foundation.Reveal($('#loginModal'));
         $('#logoutButton').hide();
     
+        var canvasEl = document.querySelector("canvas");
+        var videoEl = document.querySelector("video");
+        initMarkerDetection(canvasEl, videoEl);
+        
         initDone = true;
       }
       
@@ -446,5 +464,6 @@
     </div>
             
     </a-scene>
+    <video id="video" autoplay="true" style="display:none;"></video>
   </body>
 </html>
