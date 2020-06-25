@@ -1,78 +1,46 @@
 // TODO: interpret pose for aframe
-// TODO: bake into an aframe component
 
-var video, canvas, context, imageData, detector, posit, markerDetectedCallback, markersDetectedCallback;
-
-function initMarkerDetection(canvasEl, videoEl){
-  video = videoEl;
-  canvas = document.createElement("canvas");
-  canvas.width = canvasEl.width;
-  canvas.height = canvasEl.height;
+AFRAME.registerComponent('aruco-detector', {
+  init: function () {
+    // Code here.
+    window.setTimeout(function() {
+      this.video = document.querySelector("video");
+      var canvasEl = document.querySelector("canvas");
+      this.canvas = document.createElement("canvas");
+      this.canvas.width = canvasEl.width;
+      this.canvas.height = canvasEl.height;
+      this.context = this.canvas.getContext("2d");
+      this.detector = new AR.Detector();
+      this.posit = new POS.Posit(100, this.canvas.width);
+      this.initDone = true;
+      this.el.emit('aruco-initialized');
+    }.bind(this), 3000);
+  },
   
-  context = canvas.getContext("2d");
-  
-  if (navigator.mediaDevices === undefined) {
-    navigator.mediaDevices = {};
-  }
-  
-  if (navigator.mediaDevices.getUserMedia === undefined) {
-    navigator.mediaDevices.getUserMedia = function(constraints) {
-      var getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-      
-      if (!getUserMedia) {
-        return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
-      }
-
-      return new Promise(function(resolve, reject) {
-        getUserMedia.call(navigator, constraints, resolve, reject);
-      });
-    }
-  }
-  
-  navigator.mediaDevices
-    .getUserMedia({ video: true })
-    .then(function(stream) {
-      if ("srcObject" in video) {
-        video.srcObject = stream;
-      } else {
-        video.src = window.URL.createObjectURL(stream);
-      }
-    })
-    .catch(function(err) {
-      console.log(err.name + ": " + err.message);
-    }
-  );
-    
-  detector = new AR.Detector();
-  posit = new POS.Posit(0.1, canvas.width);
-  
-  requestAnimationFrame(tick);
-}
-
-function tick(){
-  requestAnimationFrame(tick);
-  
-  if (video.readyState === video.HAVE_ENOUGH_DATA){
-    snapshot();
-    var markers = detector.detect(imageData);
-    if (markersDetectedCallback && (markers.length > 0)) {
-      markersDetectedCallback(markers);
-    }
-    if (markerDetectedCallback && (markers.length > 0)) {
-      for (var m in markers) {
-        var corners = markers[m].corners;
-        for (var i = 0; i < corners.length; ++ i){
-          corners[i].x = corners[i].x - (canvas.width / 2);
-          corners[i].y = (canvas.height / 2) - corners[i].y;
+  tick: function (time, timeDelta) {
+    if (!this.initDone)
+      return true;
+    if (this.video.readyState === this.video.HAVE_ENOUGH_DATA){
+      this.snapshot();
+      this.markers = this.detector.detect(this.imageData);
+      if (this.markers.length > 0) {
+        for (var m in this.markers) {
+          var corners = this.markers[m].corners;
+          for (var i = 0; i < corners.length; ++ i){
+            corners[i].x = corners[i].x - (this.canvas.width / 2);
+            corners[i].y = (this.canvas.height / 2) - corners[i].y;
+          }
+          this.markers[m].pose = this.posit.pose(corners);
+          this.el.emit(`marker-${this.markers[m].id}-detected`, this.markers[m]);
         }
-        var pose = posit.pose(corners);
-        markerDetectedCallback(markers[m], pose);
+        this.el.emit('markers-detected', this.markers);
       }
     }
+  },
+  
+  snapshot: function ( ) {
+    this.context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+    this.imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
   }
-}
 
-function snapshot(){
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-}
+});

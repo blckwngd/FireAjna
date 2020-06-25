@@ -152,9 +152,13 @@
         loginModal = new Foundation.Reveal($('#loginModal'));
         $('#logoutButton').hide();
     
-        var canvasEl = document.querySelector("canvas");
-        var videoEl = document.querySelector("video");
-        initMarkerDetection(canvasEl, videoEl);
+        var markerDetector = document.getElementById("markerDetector");
+        markerDetector.addEventListener('markers-detected', function(event) {
+          console.log("MARKERS DETECTED", event.detail);
+        });
+        markerDetector.addEventListener('marker-42-detected', function(event) {
+          console.log("MARKER 42 DETECTED", event.detail);
+        });
         
         initDone = true;
       }
@@ -426,7 +430,7 @@
     >-->
     <a-scene shadow="type: pcfsoft" device-orientation-permission-ui="enabled: true" artoolkit embedded arjs='sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; sourceWidth:1280; sourceHeight:960; displayWidth: 1280; displayHeight: 960;'>
       <!-- define your scene as usual -->
-      
+      <a-entity aruco-detector id="markerDetector"></a-entity>
       <!--<a-marker type="barcode" value="42" emitevents="true" registerevents>-->
       <a-marker preset="hiro" emitevents="true" registerevents>
         <a-box color="blue" size="0.5 0.5 0.5" position="0 0 0">
@@ -463,6 +467,6 @@
     </div>
             
     </a-scene>
-    <video id="video" autoplay="true" style="display:none;"></video>
+    <!--<video id="video" autoplay="true" style="display:none;"></video>-->
   </body>
 </html>
