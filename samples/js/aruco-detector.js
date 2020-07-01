@@ -17,7 +17,7 @@ AFRAME.registerComponent('aruco-detector', {
       this.posit = new POS.Posit(100, this.canvas.width);
       this.initDone = true;
       this.el.emit('aruco-initialized');
-    }.bind(this), 3000);
+    }.bind(this), 6000);
   },
   
   tick: function (time, timeDelta) {
@@ -26,7 +26,18 @@ AFRAME.registerComponent('aruco-detector', {
     if (this.video.readyState === this.video.HAVE_ENOUGH_DATA){
       this.snapshot();
       this.markers = this.detector.detect(this.imageData);
+      
+      // DEBUG
+      if (typeof this.counter == "undefined" || this.counter < 0) {
+        this.counter=50;
+        console.log(this.imageData);
+        console.log(this.markers);
+      } else {
+        this.counter--;
+      }
+      
       if (this.markers.length > 0) {
+        console.log(this.markers);
         for (var m in this.markers) {
           var corners = this.markers[m].corners;
           for (var i = 0; i < corners.length; ++ i){
