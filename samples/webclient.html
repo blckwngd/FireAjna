@@ -73,7 +73,7 @@
       // start signIn process
       // Initialize the FirebaseUI Widget using Firebase.
       const firebase = ajna.firebase();
-      var ui = new firebaseui.auth.AuthUI(firebase.auth());
+      var ui = new firebaseui.auth.AuthUI(ajna.firebase().auth());
       
       ajna.on('auth_state_changed', function(user) {
         if (user) {
