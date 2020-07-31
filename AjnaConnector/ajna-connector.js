@@ -6,10 +6,14 @@ const transformTranslate = require("@turf/transform-translate");
 const axios = require("axios");
 const getPixels = require( "get-pixels" );
 
+const firebase = require("@firebase/app").default;
+require("@firebase/auth");
+require("@firebase/firestore");
+
 class AjnaConnector {
 
-  constructor( firebaseConfig ) {
-    
+  constructor( firebaseConfig, fb ) {
+  
     this.handler = {
       object_retrieved: false,
       auth_state_changed: false,
@@ -19,6 +23,8 @@ class AjnaConnector {
       heightmap_updated: false,
       message_received: false
     }
+    
+    console.log("CONNECTOR", firebase);
     
     this.objects = [];
     this.user = false;
@@ -33,8 +39,9 @@ class AjnaConnector {
     this.heightMapMode = "NONE"; 
     this.lastTick = Date.now();
     
-    // Initialize the Firebase SDK
+    // Initialize the Firebase SDK 
     firebase.initializeApp( firebaseConfig );
+
     this.firestore = firebase.firestore();
     this.firestore.enablePersistence()
       .catch(function(err) { console.error(err); });
@@ -58,10 +65,12 @@ class AjnaConnector {
   }
   
   login( username, password, callback ) {
+    console.log("AUTH");
+    console.log(firebase);
     firebase.auth().signInWithEmailAndPassword(username, password).catch(function(error) {
       callback(error);
     });
-  }
+  } 
   
   logout( ) {
     firebase.auth().signOut();
@@ -114,6 +123,7 @@ class AjnaConnector {
   
   _snapshot_handler( querySnapshot, tag ) {
       querySnapshot.docChanges().forEach( change => {
+        console.log(change.doc.data());
         switch(change.type) {
           case "removed":
             this._remove_object(change.doc.id);
@@ -159,14 +169,12 @@ class AjnaConnector {
     if (!this.observed.location)  // first loalization
       relocate = true;
     else if ( turf.distance(  // distance to previous observed is big enough
-          turf.point([location._long, location._lat]),
-          turf.point([this.observed.location._long, this.observed.location._lat])
+          turf.point([location.longitude, location.latitude]),
+          turf.point([this.observed.location.longitude, this.observed.location.latitude])
         ) > radius/4000 )
       relocate = true;
     if ( !relocate )
       return;
-    
-    console.log("now observing", location);
       
     
     this.observed.location = location;
@@ -182,13 +190,13 @@ class AjnaConnector {
     for (var i in this.objects) { this.objects[i].tags = [] };
       
     // RULE: !isPermissioned(resource.data.d)
-    this.q1 = this.geoquery.where('p', '==', null);
+    this.q1 = this.geoquery.where('d.p', '==', null);
     this.q1.onSnapshot(
       (qS) => {this._snapshot_handler(qS, 1)},
       (err) => { console.log( 'Encountered error: ', err ); }
     );
     // RULE: hasAnonymousPerm(resource.data.d, 'r')
-    this.q2 = this.geoquery.where('p.a', 'array-contains', 'r');
+    this.q2 = this.geoquery.where('d.p.a', 'array-contains', 'r');
     this.q2.onSnapshot(
       (qS) => {this._snapshot_handler(qS, 2)},
       (err) => { console.log( 'Encountered error: ', err ); }
@@ -196,7 +204,8 @@ class AjnaConnector {
 
     // RULE: isOwner()
     if (this.user && this.user.uid) {
-      this.q3 = this.geoquery.where('owner', '==', this.user.uid);
+      console.log("looking for owner==" + this.user.uid);
+      this.q3 = this.geoquery.where('d.owner', '==', this.user.uid);
       this.q3.onSnapshot(
         (qS) => {this._snapshot_handler(qS, 3)},
         (err) => { console.log( 'Encountered error: ', err ); }
@@ -210,7 +219,7 @@ class AjnaConnector {
     if (this.heightMap === false) {
       loadRequired = true;
     } else {
-      var dst = 1000 * turf.distance(turf.point([location._long, location._lat]), turf.point([this.heightMap.center_long, this.heightMap.center_lat]));
+      var dst = 1000 * turf.distance(turf.point([location.longitude, location.latitude]), turf.point([this.heightMap.center_long, this.heightMap.center_lat]));
       loadRequired = (dst >= this.observed.radius);
     }
     if ((this.heightMapMode != "NONE") && loadRequired) {
@@ -298,10 +307,10 @@ class AjnaConnector {
   
   
   getOffsetFromObserved(geoPoint) {
-    var lon1 = this.observed.location._long;
-    var lon2 = geoPoint._long;
-    var lat1 = this.observed.location._lat;
-    var lat2 = geoPoint._lat;
+    var lon1 = this.observed.location.longitude;
+    var lon2 = geoPoint.longitude;
+    var lat1 = this.observed.location.latitude;
+    var lat2 = geoPoint.latitude;
     var dx = turf.distance(turf.point([lon2, lat2]), turf.point([lon1, lat2]));
     var dy = turf.distance(turf.point([lon2, lat2]), turf.point([lon2, lat1]));
     return [dx * 1000, dy * 1000]; // return in meters
@@ -326,7 +335,7 @@ class AjnaConnector {
     if (this.heightMapMode == "NONE")
       return;
     // calc bounding box around current position
-    var center = turf.point([location._long, location._lat]);
+    var center = turf.point([location.longitude, location.latitude]);
     var distance = this.observed.radius * 2; // heightmap is bigger than observation radius, since we want to move without reloading
     var nw = turf.transformTranslate(center, distance/1000, 315);
     var se = turf.transformTranslate(center, distance/1000, 135);
@@ -370,8 +379,8 @@ class AjnaConnector {
               from_long: from_long,
               to_lat: to_lat,
               to_long: to_long,
-              center_lat: location._lat,
-              center_long: location._long,
+              center_lat: location.latitude,
+              center_long: location.longitude,
               attributions: attributions
             });
             
@@ -382,14 +391,14 @@ class AjnaConnector {
   
   // world coordinates to x/y pixels on heightMap
   hmProject( location ) {
-    if (location._lat < this.heightMap.from_lat || location._lat > this.heightMap.to_lat || location._long < this.heightMap.from_long || location._long > this.heightMap.to_long) {
+    if (location.latitude < this.heightMap.from_lat || location.latitude > this.heightMap.to_lat || location.longitude < this.heightMap.from_long || location.longitude > this.heightMap.to_long) {
       console.log("ERROR (hmProject): point outside heightmap");
       return;
     }
     var size_lat = this.heightMap.to_lat - this.heightMap.from_lat;
     var size_long = this.heightMap.to_long - this.heightMap.from_long;
-    var d_lat = location._lat - this.heightMap.from_lat;
-    var d_long = location._long - this.heightMap.from_long;
+    var d_lat = location.latitude - this.heightMap.from_lat;
+    var d_long = location.longitude - this.heightMap.from_long;
     var rx = d_long / size_long; // 0 .. 1
     var ry = d_lat / size_lat; // 0 .. 1
     var x = this.heightMap.width * rx;
@@ -416,7 +425,7 @@ class AjnaConnector {
     var p = this.hmProject(location);
     var id = this.heightMap.width * Math.round(p[1]) + Math.round(p[0]);
     var ele = this.heightMap.minElevation + this.heightMap.data[id] * this.heightMap.heightStep;
-    console.log(`getGroundHeight for ${location._long}/${location._lat}`);
+    console.log(`getGroundHeight for ${location.longitude}/${location.latitude}`);
     console.log(`projected position: ${p}`);
     console.log(`map width: ${this.heightMap.width}`);
     console.log(`id=${id}`);
@@ -562,7 +571,7 @@ class AjnaObject {
    **/
   moveBy( d, bearing ) {
     var coordinates = this.getLocalCoordinates();
-    var point = turf.point([coordinates._long, coordinates._lat]);
+    var point = turf.point([coordinates.longitude, coordinates.latitude]);
     var new_pos = transformTranslate( point, d/1000, bearing ); // translate by kilometers
     this.moveTo( {lat: new_pos.geometry.coordinates[1], lon: new_pos.geometry.coordinates[0]} );
   }
@@ -593,8 +602,8 @@ class AjnaObject {
   
   startMovingTowards( velocity, target ) {
     var coordinates = this.getLocalCoordinates();
-    var pointMe = turf.point([coordinates._long, coordinates._lat]);
-    var pointTarget = turf.point([target._long, target._lat]);
+    var pointMe = turf.point([coordinates.longitude, coordinates.latitude]);
+    var pointTarget = turf.point([target.longitude, target.latitude]);
     var bearing = turf.bearing(pointMe, pointTarget);
     this.startMoving(velocity, bearing);
   }
@@ -608,8 +617,8 @@ class AjnaObject {
   
   getDistanceTo( target ) {
     var p = this.getLocalCoordinates();
-    var p1 = turf.point([p._long, p._lat]);
-    var p2 = turf.point([target._long, target._lat]);
+    var p1 = turf.point([p.longitude, p.latitude]);
+    var p2 = turf.point([target.longitude, target.latitude]);
     return turf.distance(p1, p2) * 1000;
   }
   
