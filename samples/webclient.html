@@ -166,11 +166,15 @@
         
         objectTable.on( 'mouseover', 'tbody tr', function () {
           var id = objectTable.row( this ).id();
-          markers[id].setAnimation(google.maps.Animation.BOUNCE);
+          if (typeof id !== "undefined") {
+            markers[id].setAnimation(google.maps.Animation.BOUNCE);
+          }
         } );
         objectTable.on( 'mouseleave', 'tbody tr', function () {
           var id = objectTable.row( this ).id();
-          markers[id].setAnimation(null);
+          if (typeof id !== "undefined") {
+            markers[id].setAnimation(null);
+          }
         } );
         
         initDone = true;
@@ -225,6 +229,7 @@
       function openObjEditor(id) {
         objectModal.open();
         var o = ajna.getObject(id);
+        console.log(o);
         var d = o.doc.data();
         objectModal.open();
         $('#objectModalObjectId').val(id);
@@ -232,10 +237,10 @@
         $('#txtName').html(d.name);
         $('#inpDesc').val(d.description);
         $('#txtDesc').html(d.description);
-        $('#inpLong').val(d.coordinates._long);
-        $('#txtLong').html(d.coordinates._long);
-        $('#inpLat').val(d.coordinates._lat);
-        $('#txtLat').html(d.coordinates._lat);
+        $('#inpLong').val(d.coordinates.longitude);
+        $('#txtLong').html(d.coordinates.longitude);
+        $('#inpLat').val(d.coordinates.latitude);
+        $('#txtLat').html(d.coordinates.longitude);
         
         // action editor
         $("#tbl_actions_editOn tr").remove();
@@ -388,7 +393,7 @@
       function updateMapMarker(obj) {
         var data = obj.doc.data();
         var p = obj.getLocalCoordinates();
-        var latLng = new google.maps.LatLng(p._lat, p._long);
+        var latLng = new google.maps.LatLng(p.latitude, p.longitude);
         var options = {
           position: latLng,
           map: map,
@@ -584,13 +589,16 @@
           }
         }
         if (confirm('create a new object here?')) {
-          ajna.createObject({
+          console.log("create at:", latitude, longitude);
+          var data = {
             name: "unnamed object",
             description: "edit me",
             coordinates: ajna.GeoPoint(latitude, longitude),
             owner: ajna.user.uid,
             p: {a: [], r: []}
-          }, (docRef) => {
+          };
+          console.log(data);
+          ajna.createObject(data, (docRef) => {
             openObjEditor(docRef.id);
             editModeOn();
           }, (err) => {

@@ -61,12 +61,10 @@ class AjnaConnector {
     this.geofirestore = new GFS( this.firestore );
     
     // GeoCollection reference
-    this.geocollection = this.geofirestore.collection( 'objects' );
+    this.geocollection = this.geofirestore.collection( 'entities' );
   }
   
   login( username, password, callback ) {
-    console.log("AUTH");
-    console.log(firebase);
     firebase.auth().signInWithEmailAndPassword(username, password).catch(function(error) {
       callback(error);
     });
@@ -123,7 +121,6 @@ class AjnaConnector {
   
   _snapshot_handler( querySnapshot, tag ) {
       querySnapshot.docChanges().forEach( change => {
-        console.log(change.doc.data());
         switch(change.type) {
           case "removed":
             this._remove_object(change.doc.id);
@@ -183,20 +180,22 @@ class AjnaConnector {
     if(!location)
       return false;
     
+    console.log(location)
+    
     this.geoquery = this.geocollection
       .near({ center: location, radius: radius/1000 });  // GeoFireStore works with km
     
     // untag all objects
     for (var i in this.objects) { this.objects[i].tags = [] };
       
-    // RULE: !isPermissioned(resource.data.d)
-    this.q1 = this.geoquery.where('d.p', '==', null);
+    // RULE: !isPermissioned(resource.data)
+    this.q1 = this.geoquery.where('p', '==', null);
     this.q1.onSnapshot(
       (qS) => {this._snapshot_handler(qS, 1)},
       (err) => { console.log( 'Encountered error: ', err ); }
     );
-    // RULE: hasAnonymousPerm(resource.data.d, 'r')
-    this.q2 = this.geoquery.where('d.p.a', 'array-contains', 'r');
+    // RULE: hasAnonymousPerm(resource.data, 'r')
+    this.q2 = this.geoquery.where('p.a', 'array-contains', 'r');
     this.q2.onSnapshot(
       (qS) => {this._snapshot_handler(qS, 2)},
       (err) => { console.log( 'Encountered error: ', err ); }
@@ -204,14 +203,14 @@ class AjnaConnector {
 
     // RULE: isOwner()
     if (this.user && this.user.uid) {
-      console.log("looking for owner==" + this.user.uid);
-      this.q3 = this.geoquery.where('d.owner', '==', this.user.uid);
+      
+      this.q3 = this.geoquery.where('owner', '==', this.user.uid);
       this.q3.onSnapshot(
         (qS) => {this._snapshot_handler(qS, 3)},
         (err) => { console.log( 'Encountered error: ', err ); }
       );
     }
-    // RULE: hasPublicPerm(resource.data.d, 'read');
+    // RULE: hasPublicPerm(resource.data, 'read');
 //    this.geoquery.where('permissions', '!=', null).where(onSnapshot(snapshot_handler.bind(this), err => { console.log( 'Encountered error: ', err ); });
 
     // check if a new heightmap tile needs to be loaded
@@ -597,7 +596,7 @@ class AjnaObject {
   }
   
   getLocalCoordinates() {
-    return this.localCoordinates || this.doc.data().coordinates;
+    return this.localCoordinates || this.doc.data().g.geopoint;
   }
   
   startMovingTowards( velocity, target ) {
@@ -617,6 +616,7 @@ class AjnaObject {
   
   getDistanceTo( target ) {
     var p = this.getLocalCoordinates();
+    console.log(p);
     var p1 = turf.point([p.longitude, p.latitude]);
     var p2 = turf.point([target.longitude, target.latitude]);
     return turf.distance(p1, p2) * 1000;
@@ -689,12 +689,12 @@ class AjnaObject {
   }
   
   updateData( doc ) {
-    this.localCoordinates = doc.data().coordinates;
+    this.localCoordinates = doc.data().g.geopoint;
     this.doc = doc;
   }
   
   delete( callback ) {
-    this.ajna.firestore.collection( 'objects' ).doc( this.id ).delete()
+    this.ajna.firestore.collection( 'entities' ).doc( this.id ).delete()
     .catch(
       function( ) {
         if (typeof callback != "undefined")

@@ -18,7 +18,8 @@ type Permissions = {
   g?: map
 }
 
-type AjnaObjectData = {
+type AjnaObject = {
+  g: GeoEntry,
   name: string,
   description?: string,
   coordinates: latlng,
@@ -33,16 +34,13 @@ type AjnaObjectData = {
   p: Permissions
 }
 
-type AjnaObject = {
-  d: AjnaObjectData,
-  g: string,
-  l: latlng
+type GeoEntry = {
+  geohash: string,
+  geopoint: latlng
 }
 
 type PartialAjnaObject = {
-  d: any,
-  g: string,
-  l: latlng
+  g: GeoEntry
 }
 
 type Message = {
@@ -102,15 +100,15 @@ function hasUserPerm(subj, perm) {
 
 // checks if the logged in user is the owner of the document 
 function isOwner(subj) {
-  return subj.owner == request.auth.uid;
+  return isLoggedIn() && (subj.owner == request.auth.uid);
 }
 
 // checks if the user is trying to modify permissions
 function permissionsNotTouched() {
-  return (!request.resource.data.d.keys().hasAny(['p']) || 
-    (request.resource.data.d.p == resource.data.d.p)
+  return (!request.resource.data.keys().hasAny(['p']) || 
+    (request.resource.data.p == resource.data.p)
   );
-  //return !(request.resource.data.d.p);
+  //return !(request.resource.data.p);
 }
 
 // checks if the logged in user is the owner of the document 
@@ -119,14 +117,14 @@ function isSender(msg) {
 }
 
 
-match /objects/{object} is PartialAjnaObject {
-  allow update: if isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w')));
+match /entities/{entity} is PartialAjnaObject {
+  allow update: if isOwner(resource.data) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data, 'w') || hasUserPerm(resource.data, 'w')));
 }
 
-match /objects/{object} is AjnaObject {
-  allow read: if !isPermissioned(resource.data.d) || isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'r');
-  allow write: if isOwner(resource.data.d) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data.d, 'w') || hasUserPerm(resource.data.d, 'w')));
-  allow delete: if isOwner(resource.data.d) || hasAnonymousPerm(resource.data.d, 'd') || hasUserPerm(resource.data.d, 'd');
+match /entities/{entity} is AjnaObject {
+  allow read: if !isPermissioned(resource.data) || isOwner(resource.data) || hasAnonymousPerm(resource.data, 'r') || hasUserPerm(resource.data, 'r');
+  allow write: if isOwner(resource.data) || (permissionsNotTouched() && (hasAnonymousPerm(resource.data, 'w') || hasUserPerm(resource.data, 'w')));
+  allow delete: if isOwner(resource.data) || hasAnonymousPerm(resource.data, 'd') || hasUserPerm(resource.data, 'd');
   allow create: if isLoggedIn();
   
 }
